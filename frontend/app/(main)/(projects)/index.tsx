@@ -19,7 +19,7 @@ import { projectsApi } from '../../../src/api/projects';
 import { invitesApi } from '../../../src/api/invites';
 import type { Project, ProjectInvite } from '../../../src/types';
 
-type FilterType = 'all' | 'owned' | 'shared';
+type FilterType = 'all' | 'owned' | 'shared' | 'archived';
 
 export default function ProjectsScreen() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -36,11 +36,25 @@ export default function ProjectsScreen() {
 
   const loadData = async () => {
     try {
+      // For archived filter, get all projects then filter client-side
+      // For other filters, use the API filter but exclude archived on client side
+      const apiFilter = filter === 'archived' ? 'all' : filter;
       const [projectsResponse, invitesResponse] = await Promise.all([
-        projectsApi.getAll(filter),
+        projectsApi.getAll(apiFilter),
         invitesApi.getPending(),
       ]);
-      setProjects(projectsResponse.projects);
+
+      // Filter projects based on archive status
+      let filteredProjects = projectsResponse.projects;
+      if (filter === 'archived') {
+        // Show only archived projects
+        filteredProjects = filteredProjects.filter((p) => p.status === 'archived');
+      } else {
+        // Hide archived projects for all other filters
+        filteredProjects = filteredProjects.filter((p) => p.status !== 'archived');
+      }
+
+      setProjects(filteredProjects);
       setPendingInvites(invitesResponse.invites);
     } catch (error) {
       console.error('Failed to load projects:', error);
@@ -132,6 +146,11 @@ export default function ProjectsScreen() {
           active={filter === 'shared'}
           onPress={() => setFilter('shared')}
         />
+        <FilterButton
+          label="Archived"
+          active={filter === 'archived'}
+          onPress={() => setFilter('archived')}
+        />
       </View>
     </View>
   );
@@ -167,17 +186,19 @@ export default function ProjectsScreen() {
         }
         ListEmptyComponent={
           <EmptyState
-            icon="folder"
-            title="No projects yet"
+            icon={filter === 'archived' ? 'archive' : 'folder'}
+            title={filter === 'archived' ? 'No archived projects' : 'No projects yet'}
             message={
               filter === 'all'
                 ? 'Create your first project to start tracking progress'
                 : filter === 'owned'
                 ? 'You haven\'t created any projects yet'
-                : 'No projects have been shared with you'
+                : filter === 'shared'
+                ? 'No projects have been shared with you'
+                : 'Projects you archive will appear here'
             }
-            actionLabel={filter !== 'shared' ? 'Create Project' : undefined}
-            onAction={filter !== 'shared' ? () => router.push('/(main)/(projects)/new') : undefined}
+            actionLabel={filter !== 'shared' && filter !== 'archived' ? 'Create Project' : undefined}
+            onAction={filter !== 'shared' && filter !== 'archived' ? () => router.push('/(main)/(projects)/new') : undefined}
           />
         }
       />

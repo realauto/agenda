@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,7 +23,7 @@ import { FeedList } from '../../../src/components/feed/FeedList';
 import { CategoryFilter } from '../../../src/components/feed/CategoryFilter';
 import { useProjectFeed } from '../../../src/hooks/useFeed';
 import { projectsApi, type CollaboratorsResponse } from '../../../src/api/projects';
-import type { Project, ProjectRole, User } from '../../../src/types';
+import type { Project, ProjectRole, User, ProjectStatus } from '../../../src/types';
 
 const statusColors: Record<string, string> = {
   active: colors.success,
@@ -38,9 +39,11 @@ export default function ProjectDetailScreen() {
   const [collaborators, setCollaborators] = useState<CollaboratorsResponse | null>(null);
   const [projectLoading, setProjectLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
   const [isInviting, setIsInviting] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const {
     updates,
@@ -127,6 +130,36 @@ export default function ProjectDetailScreen() {
     );
   };
 
+  const handleArchiveToggle = () => {
+    setShowSettingsMenu(false);
+    const isArchived = project?.status === 'archived';
+    const title = isArchived ? 'Unarchive Project' : 'Archive Project';
+    const message = isArchived
+      ? 'This project will be restored and visible in your projects list.'
+      : 'This project will be hidden from your default projects view. You can still access it via the "Archived" filter.';
+    const actionText = isArchived ? 'Unarchive' : 'Archive';
+
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: actionText,
+        style: isArchived ? 'default' : 'destructive',
+        onPress: async () => {
+          setIsUpdatingStatus(true);
+          try {
+            const newStatus: ProjectStatus = isArchived ? 'active' : 'archived';
+            const response = await projectsApi.update(projectId!, { status: newStatus });
+            setProject(response.project);
+          } catch (error) {
+            Alert.alert('Error', `Failed to ${isArchived ? 'unarchive' : 'archive'} project`);
+          } finally {
+            setIsUpdatingStatus(false);
+          }
+        },
+      },
+    ]);
+  };
+
   if (projectLoading || !project) {
     return (
       <SafeAreaView style={styles.container}>
@@ -176,6 +209,14 @@ export default function ProjectDetailScreen() {
             color={statusColors[project.status]}
             size="medium"
           />
+          {canEdit && (
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => setShowSettingsMenu(true)}
+            >
+              <Feather name="more-vertical" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {project.description && (
@@ -503,6 +544,41 @@ export default function ProjectDetailScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Settings Menu Modal */}
+      <Modal
+        visible={showSettingsMenu}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowSettingsMenu(false)}
+      >
+        <Pressable
+          style={styles.settingsMenuOverlay}
+          onPress={() => setShowSettingsMenu(false)}
+        >
+          <View style={styles.settingsMenuContainer}>
+            <TouchableOpacity
+              style={styles.settingsMenuItem}
+              onPress={handleArchiveToggle}
+              disabled={isUpdatingStatus}
+            >
+              <Feather
+                name={project.status === 'archived' ? 'refresh-cw' : 'archive'}
+                size={20}
+                color={project.status === 'archived' ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.settingsMenuText,
+                  project.status === 'archived' && styles.settingsMenuTextHighlight,
+                ]}
+              >
+                {project.status === 'archived' ? 'Unarchive Project' : 'Archive Project'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -770,5 +846,40 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundSecondary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  settingsButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
+  settingsMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsMenuContainer: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    minWidth: 200,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  settingsMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  settingsMenuText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  settingsMenuTextHighlight: {
+    color: colors.primary,
   },
 });

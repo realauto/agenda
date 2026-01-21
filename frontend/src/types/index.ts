@@ -119,6 +119,16 @@ export interface Reaction {
   createdAt: string;
 }
 
+export interface Comment {
+  _id: string;
+  authorId: string;
+  author?: User;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  isEdited: boolean;
+}
+
 export interface Update {
   _id: string;
   projectId: string;
@@ -132,6 +142,7 @@ export interface Update {
   mentions: string[];
   attachments: Attachment[];
   reactions: Reaction[];
+  comments: Comment[];
   isPinned: boolean;
   isEdited: boolean;
   editedAt?: string;

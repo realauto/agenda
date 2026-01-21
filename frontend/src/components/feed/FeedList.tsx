@@ -23,6 +23,9 @@ interface FeedListProps {
   onEdit?: (update: Update) => void;
   onDelete?: (updateId: string) => void;
   onPressUpdate?: (update: Update) => void;
+  onAddComment?: (updateId: string, content: string) => Promise<void>;
+  onEditComment?: (updateId: string, commentId: string, content: string) => void;
+  onDeleteComment?: (updateId: string, commentId: string) => void;
   emptyTitle?: string;
   emptyMessage?: string;
   emptyAction?: string;
@@ -41,6 +44,9 @@ export function FeedList({
   onEdit,
   onDelete,
   onPressUpdate,
+  onAddComment,
+  onEditComment,
+  onDeleteComment,
   emptyTitle = 'No updates yet',
   emptyMessage = 'Be the first to post an update!',
   emptyAction,
@@ -54,6 +60,9 @@ export function FeedList({
       onEdit={onEdit ? () => onEdit(item) : undefined}
       onDelete={onDelete ? () => onDelete(item._id) : undefined}
       onPress={onPressUpdate ? () => onPressUpdate(item) : undefined}
+      onAddComment={onAddComment ? (content) => onAddComment(item._id, content) : undefined}
+      onEditComment={onEditComment ? (commentId, content) => onEditComment(item._id, commentId, content) : undefined}
+      onDeleteComment={onDeleteComment ? (commentId) => onDeleteComment(item._id, commentId) : undefined}
     />
   );
 

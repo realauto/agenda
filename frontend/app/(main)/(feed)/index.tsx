@@ -21,6 +21,9 @@ export default function FeedScreen() {
     addReaction,
     removeReaction,
     deleteUpdate,
+    addComment,
+    editComment,
+    deleteComment,
     setCategoryFilter,
   } = useFeed();
 
@@ -67,6 +70,9 @@ export default function FeedScreen() {
         onReact={handleReact}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onAddComment={addComment}
+        onEditComment={editComment}
+        onDeleteComment={deleteComment}
         emptyTitle="Your feed is empty"
         emptyMessage="Join a team and follow projects to see updates here"
         ListHeaderComponent={

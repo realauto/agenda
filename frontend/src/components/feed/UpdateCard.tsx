@@ -6,6 +6,7 @@ import { getCategoryByValue, getMoodByValue } from '../../constants/categories';
 import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
+import { CommentSection } from './CommentSection';
 import type { Update } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 
@@ -15,9 +16,21 @@ interface UpdateCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onPress?: () => void;
+  onAddComment?: (content: string) => Promise<void>;
+  onEditComment?: (commentId: string, content: string) => void;
+  onDeleteComment?: (commentId: string) => void;
 }
 
-const QUICK_REACTIONS = ['👍', '❤️', '🎉', '🚀', '👀'];
+// Reaction icons using Feather icon names
+const REACTION_ICONS: Record<string, { icon: keyof typeof Feather.glyphMap; color: string }> = {
+  like: { icon: 'thumbs-up', color: colors.primary },
+  love: { icon: 'heart', color: '#EF4444' },
+  celebrate: { icon: 'award', color: '#F59E0B' },
+  rocket: { icon: 'zap', color: '#8B5CF6' },
+  eyes: { icon: 'eye', color: colors.textSecondary },
+};
+
+const QUICK_REACTIONS = ['like', 'love', 'celebrate'];
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -41,8 +54,12 @@ export function UpdateCard({
   onEdit,
   onDelete,
   onPress,
+  onAddComment,
+  onEditComment,
+  onDeleteComment,
 }: UpdateCardProps) {
   const [showActions, setShowActions] = useState(false);
+  const [commentsExpanded, setCommentsExpanded] = useState(false);
   const user = useAuthStore((state) => state.user);
   const isAuthor = user?._id === update.authorId;
 
@@ -130,33 +147,61 @@ export function UpdateCard({
 
       {/* Reactions */}
       <View style={styles.reactionsSection}>
-        {Object.entries(reactionGroups).map(([emoji, userIds]) => (
-          <TouchableOpacity
-            key={emoji}
-            style={[
-              styles.reactionBadge,
-              userIds.includes(user?._id || '') && styles.reactionBadgeActive,
-            ]}
-            onPress={() => handleReaction(emoji)}
-          >
-            <Text style={styles.reactionEmoji}>{emoji}</Text>
-            <Text style={styles.reactionCount}>{userIds.length}</Text>
-          </TouchableOpacity>
-        ))}
+        {Object.entries(reactionGroups).map(([reactionKey, userIds]) => {
+          const reactionConfig = REACTION_ICONS[reactionKey];
+          if (!reactionConfig) return null;
+          const isActive = userIds.includes(user?._id || '');
+          return (
+            <TouchableOpacity
+              key={reactionKey}
+              style={[
+                styles.reactionBadge,
+                isActive && styles.reactionBadgeActive,
+              ]}
+              onPress={() => handleReaction(reactionKey)}
+            >
+              <Feather
+                name={reactionConfig.icon}
+                size={14}
+                color={isActive ? reactionConfig.color : colors.textSecondary}
+              />
+              <Text style={[styles.reactionCount, isActive && { color: reactionConfig.color }]}>
+                {userIds.length}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
 
         {/* Quick reaction buttons */}
         <View style={styles.quickReactions}>
-          {QUICK_REACTIONS.filter((e) => !reactionGroups[e]).slice(0, 3).map((emoji) => (
-            <TouchableOpacity
-              key={emoji}
-              style={styles.quickReactionButton}
-              onPress={() => handleReaction(emoji)}
-            >
-              <Text style={styles.quickReactionEmoji}>{emoji}</Text>
-            </TouchableOpacity>
-          ))}
+          {QUICK_REACTIONS.filter((key) => !reactionGroups[key]).map((reactionKey) => {
+            const reactionConfig = REACTION_ICONS[reactionKey];
+            return (
+              <TouchableOpacity
+                key={reactionKey}
+                style={styles.quickReactionButton}
+                onPress={() => handleReaction(reactionKey)}
+              >
+                <Feather
+                  name={reactionConfig.icon}
+                  size={18}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
+
+      {/* Comments */}
+      <CommentSection
+        comments={update.comments || []}
+        isExpanded={commentsExpanded}
+        onToggleExpand={() => setCommentsExpanded(!commentsExpanded)}
+        onAddComment={onAddComment || (async () => {})}
+        onEditComment={onEditComment || (() => {})}
+        onDeleteComment={onDeleteComment || (() => {})}
+      />
     </Card>
   );
 }
@@ -259,12 +304,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   reactionBadgeActive: {
-    backgroundColor: colors.primaryLight + '30',
+    backgroundColor: colors.primaryLight + '20',
     borderWidth: 1,
     borderColor: colors.primary,
-  },
-  reactionEmoji: {
-    fontSize: 14,
   },
   reactionCount: {
     fontSize: 12,
@@ -276,11 +318,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   quickReactionButton: {
-    padding: 4,
+    padding: 6,
     marginLeft: 4,
-  },
-  quickReactionEmoji: {
-    fontSize: 18,
-    opacity: 0.5,
   },
 });

@@ -53,6 +53,9 @@ export default function ProjectDetailScreen() {
     addReaction,
     removeReaction,
     deleteUpdate,
+    addComment,
+    editComment,
+    deleteComment,
     setCategoryFilter,
   } = useProjectFeed(projectId);
 
@@ -316,6 +319,9 @@ export default function ProjectDetailScreen() {
         onLoadMore={loadMore}
         onReact={handleReact}
         onDelete={handleDelete}
+        onAddComment={addComment}
+        onEditComment={editComment}
+        onDeleteComment={deleteComment}
         emptyTitle="No updates yet"
         emptyMessage="Post the first update for this project"
         emptyAction={canEdit ? 'Post Update' : undefined}

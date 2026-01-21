@@ -45,6 +45,20 @@ export const addReactionSchema = z.object({
   emoji: z.string().min(1).max(10),
 });
 
+export const addCommentSchema = z.object({
+  content: z
+    .string()
+    .min(1, 'Comment content is required')
+    .max(2000, 'Comment must be at most 2000 characters'),
+});
+
+export const updateCommentSchema = z.object({
+  content: z
+    .string()
+    .min(1, 'Comment content is required')
+    .max(2000, 'Comment must be at most 2000 characters'),
+});
+
 export const feedQuerySchema = z.object({
   cursor: z.string().length(24).optional(),
   limit: z.coerce.number().min(1).max(100).optional(),
@@ -54,4 +68,6 @@ export const feedQuerySchema = z.object({
 export type CreateUpdateInput = z.infer<typeof createUpdateSchema>;
 export type UpdateUpdateInput = z.infer<typeof updateUpdateSchema>;
 export type AddReactionInput = z.infer<typeof addReactionSchema>;
+export type AddCommentInput = z.infer<typeof addCommentSchema>;
+export type UpdateCommentInput = z.infer<typeof updateCommentSchema>;
 export type FeedQueryInput = z.infer<typeof feedQuerySchema>;

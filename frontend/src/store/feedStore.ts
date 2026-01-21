@@ -21,6 +21,9 @@ interface FeedState {
   deleteUpdate: (updateId: string) => Promise<void>;
   addReaction: (updateId: string, emoji: string) => Promise<void>;
   removeReaction: (updateId: string, emoji: string) => Promise<void>;
+  addComment: (updateId: string, content: string) => Promise<void>;
+  editComment: (updateId: string, commentId: string, content: string) => Promise<void>;
+  deleteComment: (updateId: string, commentId: string) => Promise<void>;
   setCategoryFilter: (category?: UpdateCategory) => void;
   clearFeed: () => void;
   clearError: () => void;
@@ -192,6 +195,54 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to remove reaction';
       set({ error: message });
+    }
+  },
+
+  addComment: async (updateId: string, content: string) => {
+    try {
+      const response = await updatesApi.addComment(updateId, { content });
+      set((state) => ({
+        updates: state.updates.map((u) =>
+          u._id === updateId ? response.update : u
+        ),
+      }));
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Failed to add comment';
+      set({ error: message });
+      throw new Error(message);
+    }
+  },
+
+  editComment: async (updateId: string, commentId: string, content: string) => {
+    try {
+      const response = await updatesApi.updateComment(updateId, commentId, { content });
+      set((state) => ({
+        updates: state.updates.map((u) =>
+          u._id === updateId ? response.update : u
+        ),
+      }));
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Failed to edit comment';
+      set({ error: message });
+      throw new Error(message);
+    }
+  },
+
+  deleteComment: async (updateId: string, commentId: string) => {
+    try {
+      await updatesApi.deleteComment(updateId, commentId);
+      // Remove the comment from the local state
+      set((state) => ({
+        updates: state.updates.map((u) =>
+          u._id === updateId
+            ? { ...u, comments: u.comments.filter((c) => c._id !== commentId) }
+            : u
+        ),
+      }));
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Failed to delete comment';
+      set({ error: message });
+      throw new Error(message);
     }
   },
 

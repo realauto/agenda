@@ -128,6 +128,15 @@ export interface Reaction {
   createdAt: Date;
 }
 
+export interface Comment {
+  _id: ObjectId;
+  authorId: ObjectId;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isEdited: boolean;
+}
+
 export interface Update {
   _id: ObjectId;
   projectId: ObjectId;
@@ -140,6 +149,7 @@ export interface Update {
   mentions: ObjectId[];
   attachments: Attachment[];
   reactions: Reaction[];
+  comments: Comment[];
   isPinned: boolean;
   isEdited: boolean;
   editedAt?: Date;

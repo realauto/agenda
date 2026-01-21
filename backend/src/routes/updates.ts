@@ -8,10 +8,14 @@ import {
   createUpdateSchema,
   updateUpdateSchema,
   addReactionSchema,
+  addCommentSchema,
+  updateCommentSchema,
   feedQuerySchema,
   type CreateUpdateInput,
   type UpdateUpdateInput,
   type AddReactionInput,
+  type AddCommentInput,
+  type UpdateCommentInput,
   type FeedQueryInput,
 } from '../models/Update.js';
 import { authenticate } from '../middleware/authenticate.js';
@@ -630,6 +634,235 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       );
 
       return reply.send({ update: updatedUpdate });
+    }
+  );
+
+  // Add comment
+  fastify.post<{ Params: { updateId: string }; Body: AddCommentInput }>(
+    '/updates/:updateId/comments',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Updates'],
+        description: 'Add a comment to an update',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['updateId'],
+          properties: {
+            updateId: { type: 'string' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['content'],
+          properties: {
+            content: { type: 'string', minLength: 1, maxLength: 2000 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const validation = addCommentSchema.safeParse(request.body);
+      if (!validation.success) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Validation Error',
+          message: validation.error.errors[0].message,
+        });
+      }
+
+      const update = await feedService.findById(request.params.updateId);
+
+      if (!update) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Update not found',
+        });
+      }
+
+      // Check access based on project
+      const project = await projectService.findById(update.projectId.toString());
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
+        });
+      }
+
+      if (project.teamId) {
+        // Team-based project: check team membership
+        const isMember = await teamService.isMember(project.teamId.toString(), request.user!.userId);
+        if (!isMember) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You are not a member of this team',
+          });
+        }
+      } else {
+        // Personal project: check project access
+        const role = await projectService.getUserRole(update.projectId.toString(), request.user!.userId);
+        if (!role) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You do not have access to this project',
+          });
+        }
+      }
+
+      const updatedUpdate = await feedService.addComment(
+        request.params.updateId,
+        request.user!.userId,
+        validation.data.content
+      );
+
+      // Enrich with author info
+      const author = await userService.findById(updatedUpdate!.authorId.toString());
+
+      return reply.code(201).send({
+        update: {
+          ...updatedUpdate,
+          author: author ? userService.toPublic(author) : null,
+        },
+      });
+    }
+  );
+
+  // Update comment
+  fastify.patch<{ Params: { updateId: string; commentId: string }; Body: UpdateCommentInput }>(
+    '/updates/:updateId/comments/:commentId',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Updates'],
+        description: 'Edit a comment',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['updateId', 'commentId'],
+          properties: {
+            updateId: { type: 'string' },
+            commentId: { type: 'string' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['content'],
+          properties: {
+            content: { type: 'string', minLength: 1, maxLength: 2000 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const validation = updateCommentSchema.safeParse(request.body);
+      if (!validation.success) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Validation Error',
+          message: validation.error.errors[0].message,
+        });
+      }
+
+      const update = await feedService.findById(request.params.updateId);
+
+      if (!update) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Update not found',
+        });
+      }
+
+      // Only the comment author can edit
+      const updatedUpdate = await feedService.updateComment(
+        request.params.updateId,
+        request.params.commentId,
+        request.user!.userId,
+        validation.data.content
+      );
+
+      if (!updatedUpdate) {
+        return reply.code(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'You can only edit your own comments',
+        });
+      }
+
+      const author = await userService.findById(updatedUpdate.authorId.toString());
+
+      return reply.send({
+        update: {
+          ...updatedUpdate,
+          author: author ? userService.toPublic(author) : null,
+        },
+      });
+    }
+  );
+
+  // Delete comment
+  fastify.delete<{ Params: { updateId: string; commentId: string } }>(
+    '/updates/:updateId/comments/:commentId',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Updates'],
+        description: 'Delete a comment',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['updateId', 'commentId'],
+          properties: {
+            updateId: { type: 'string' },
+            commentId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const update = await feedService.findById(request.params.updateId);
+
+      if (!update) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Update not found',
+        });
+      }
+
+      // Check if user is admin (can delete any comment) or comment author
+      let isAdmin = false;
+      if (update.teamId) {
+        const role = await teamService.getMemberRole(update.teamId.toString(), request.user!.userId);
+        isAdmin = role === 'admin';
+      } else {
+        const project = await projectService.findById(update.projectId.toString());
+        if (project) {
+          isAdmin = project.ownerId.toString() === request.user!.userId;
+        }
+      }
+
+      const updatedUpdate = await feedService.deleteComment(
+        request.params.updateId,
+        request.params.commentId,
+        request.user!.userId,
+        isAdmin
+      );
+
+      if (!updatedUpdate) {
+        return reply.code(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'You can only delete your own comments or be an admin',
+        });
+      }
+
+      return reply.send({ message: 'Comment deleted successfully' });
     }
   );
 };

@@ -16,6 +16,14 @@ export interface UpdateUpdateInput {
   attachments?: Attachment[];
 }
 
+export interface AddCommentInput {
+  content: string;
+}
+
+export interface UpdateCommentInput {
+  content: string;
+}
+
 export interface FeedParams {
   cursor?: string;
   limit?: number;
@@ -70,5 +78,29 @@ export const updatesApi = {
       `/updates/${updateId}/reactions/${encodeURIComponent(emoji)}`
     );
     return response.data;
+  },
+
+  addComment: async (updateId: string, data: AddCommentInput): Promise<{ update: Update }> => {
+    const response = await apiClient.post<{ update: Update }>(
+      `/updates/${updateId}/comments`,
+      data
+    );
+    return response.data;
+  },
+
+  updateComment: async (
+    updateId: string,
+    commentId: string,
+    data: UpdateCommentInput
+  ): Promise<{ update: Update }> => {
+    const response = await apiClient.patch<{ update: Update }>(
+      `/updates/${updateId}/comments/${commentId}`,
+      data
+    );
+    return response.data;
+  },
+
+  deleteComment: async (updateId: string, commentId: string): Promise<void> => {
+    await apiClient.delete(`/updates/${updateId}/comments/${commentId}`);
   },
 };

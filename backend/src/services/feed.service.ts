@@ -1,5 +1,5 @@
 import { Collection, ObjectId, Filter } from 'mongodb';
-import type { Update, UpdateCategory, Reaction } from '../types/index.js';
+import type { Update, UpdateCategory, Reaction, Comment } from '../types/index.js';
 import type { CreateUpdateInput, UpdateUpdateInput, FeedQueryInput } from '../models/Update.js';
 import { extractMentions, contentToHtml, parsePagination, encodeCursor } from '../utils/index.js';
 
@@ -30,6 +30,7 @@ export class FeedService {
       mentions: mentionIds,
       attachments: input.attachments ?? [],
       reactions: [],
+      comments: [],
       isPinned: false,
       isEdited: false,
       createdAt: now,
@@ -232,5 +233,87 @@ export class FeedService {
   async deleteByTeamId(teamId: string): Promise<number> {
     const result = await this.collection.deleteMany({ teamId: new ObjectId(teamId) });
     return result.deletedCount;
+  }
+
+  async addComment(updateId: string, authorId: string, content: string): Promise<Update | null> {
+    const comment: Comment = {
+      _id: new ObjectId(),
+      authorId: new ObjectId(authorId),
+      content,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isEdited: false,
+    };
+
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(updateId) },
+      {
+        $push: { comments: comment },
+        $set: { updatedAt: new Date() },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
+  }
+
+  async updateComment(
+    updateId: string,
+    commentId: string,
+    authorId: string,
+    content: string
+  ): Promise<Update | null> {
+    const result = await this.collection.findOneAndUpdate(
+      {
+        _id: new ObjectId(updateId),
+        'comments._id': new ObjectId(commentId),
+        'comments.authorId': new ObjectId(authorId),
+      },
+      {
+        $set: {
+          'comments.$.content': content,
+          'comments.$.updatedAt': new Date(),
+          'comments.$.isEdited': true,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
+  }
+
+  async deleteComment(
+    updateId: string,
+    commentId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<Update | null> {
+    // Build the query - if admin, allow deleting any comment; otherwise only own comments
+    const query: Filter<Update> = {
+      _id: new ObjectId(updateId),
+      'comments._id': new ObjectId(commentId),
+    };
+
+    if (!isAdmin) {
+      query['comments.authorId'] = new ObjectId(userId);
+    }
+
+    // First check if the comment exists and user has permission
+    const update = await this.collection.findOne(query);
+    if (!update) {
+      return null;
+    }
+
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(updateId) },
+      {
+        $pull: { comments: { _id: new ObjectId(commentId) } },
+        $set: { updatedAt: new Date() },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
   }
 }

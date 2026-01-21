@@ -131,7 +131,7 @@ export interface Reaction {
 export interface Update {
   _id: ObjectId;
   projectId: ObjectId;
-  teamId: ObjectId;
+  teamId?: ObjectId;
   authorId: ObjectId;
   content: string;
   contentHtml?: string;

@@ -61,7 +61,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
       }));
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to fetch feed';
-      set({ error: message, isLoading: false, isRefreshing: false });
+      set({ error: message, isLoading: false, isRefreshing: false, hasMore: false });
     }
   },
 
@@ -91,7 +91,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
       }));
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to fetch team feed';
-      set({ error: message, isLoading: false, isRefreshing: false });
+      set({ error: message, isLoading: false, isRefreshing: false, hasMore: false });
     }
   },
 
@@ -121,7 +121,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
       }));
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to fetch project feed';
-      set({ error: message, isLoading: false, isRefreshing: false });
+      set({ error: message, isLoading: false, isRefreshing: false, hasMore: false });
     }
   },
 

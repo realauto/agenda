@@ -9,7 +9,7 @@ export class FeedService {
     private usersCollection: Collection<{ _id: ObjectId; username: string }>
   ) {}
 
-  async create(input: CreateUpdateInput, teamId: string, authorId: string): Promise<Update> {
+  async create(input: CreateUpdateInput, teamId: string | null, authorId: string): Promise<Update> {
     const now = new Date();
     const mentionedUsernames = extractMentions(input.content);
 
@@ -21,7 +21,7 @@ export class FeedService {
 
     const update: Omit<Update, '_id'> = {
       projectId: new ObjectId(input.projectId),
-      teamId: new ObjectId(teamId),
+      teamId: teamId ? new ObjectId(teamId) : undefined,
       authorId: new ObjectId(authorId),
       content: input.content,
       contentHtml: contentToHtml(input.content),

@@ -6,7 +6,6 @@ import { colors } from '../../../src/constants/colors';
 import { UpdateComposer } from '../../../src/components/feed/UpdateComposer';
 import { Loading } from '../../../src/components/ui/Loading';
 import { useFeedStore } from '../../../src/store/feedStore';
-import { useTeamStore } from '../../../src/store/teamStore';
 import { projectsApi } from '../../../src/api/projects';
 import type { Project, UpdateCategory, UpdateMood } from '../../../src/types';
 
@@ -19,7 +18,6 @@ export default function NewUpdateScreen() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { teams, fetchTeams } = useTeamStore();
   const { createUpdate, editUpdate } = useFeedStore();
 
   useEffect(() => {
@@ -29,14 +27,9 @@ export default function NewUpdateScreen() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      await fetchTeams();
-      // Fetch projects for all teams
-      const allProjects: Project[] = [];
-      for (const team of teams) {
-        const response = await projectsApi.getByTeam(team._id);
-        allProjects.push(...response.projects);
-      }
-      setProjects(allProjects);
+      // Fetch all projects the user has access to
+      const response = await projectsApi.getAll();
+      setProjects(response.projects);
     } catch (error) {
       Alert.alert('Error', 'Failed to load projects');
     } finally {

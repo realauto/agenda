@@ -76,29 +76,49 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
         });
       }
 
-      // Check team membership
-      const isMember = await teamService.isMember(project.teamId.toString(), request.user!.userId);
-      if (!isMember) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'You are not a member of this team',
-        });
-      }
+      // Check access based on project type
+      if (project.teamId) {
+        // Team-based project: check team membership
+        const isMember = await teamService.isMember(project.teamId.toString(), request.user!.userId);
+        if (!isMember) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You are not a member of this team',
+          });
+        }
 
-      // Check role (must be member or higher)
-      const role = await teamService.getMemberRole(project.teamId.toString(), request.user!.userId);
-      if (role === 'viewer') {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Viewers cannot post updates',
-        });
+        // Check role (must be member or higher)
+        const role = await teamService.getMemberRole(project.teamId.toString(), request.user!.userId);
+        if (role === 'viewer') {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'Viewers cannot post updates',
+          });
+        }
+      } else {
+        // Personal project: check owner or collaborator with edit access
+        const projectRole = await projectService.getUserRole(validation.data.projectId, request.user!.userId);
+        if (!projectRole) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You do not have access to this project',
+          });
+        }
+        if (projectRole === 'viewer') {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'Viewers cannot post updates',
+          });
+        }
       }
 
       const update = await feedService.create(
         validation.data,
-        project.teamId.toString(),
+        project.teamId?.toString() || null,
         request.user!.userId
       );
 
@@ -275,14 +295,27 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
         });
       }
 
-      // Check team membership
-      const isMember = await teamService.isMember(project.teamId.toString(), request.user!.userId);
-      if (!isMember) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'You are not a member of this team',
-        });
+      // Check access: either team membership or project collaborator
+      if (project.teamId) {
+        // Team-based project: check team membership
+        const isMember = await teamService.isMember(project.teamId.toString(), request.user!.userId);
+        if (!isMember) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You are not a member of this team',
+          });
+        }
+      } else {
+        // Personal project: check owner or collaborator
+        const role = await projectService.getUserRole(projectId, request.user!.userId);
+        if (!role) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You do not have access to this project',
+          });
+        }
       }
 
       const validation = feedQuerySchema.safeParse(request.query);

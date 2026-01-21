@@ -441,7 +441,7 @@ const projectsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 
   // Accept invite
   fastify.post<{ Params: { token: string } }>(
-    '/invites/:token/accept',
+    '/project-invites/:token/accept',
     {
       onRequest: [authenticate],
       schema: {
@@ -520,7 +520,7 @@ const projectsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 
   // Decline invite
   fastify.post<{ Params: { token: string } }>(
-    '/invites/:token/decline',
+    '/project-invites/:token/decline',
     {
       onRequest: [authenticate],
       schema: {

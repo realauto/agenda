@@ -70,13 +70,11 @@ export function useTeamFeed(teamId: string) {
     addReaction,
     removeReaction,
     setCategoryFilter,
-    clearFeed,
     clearError,
   } = useFeedStore();
 
   useEffect(() => {
     if (teamId) {
-      clearFeed();
       fetchTeamFeed(teamId, true);
     }
   }, [teamId, categoryFilter]);
@@ -127,13 +125,11 @@ export function useProjectFeed(projectId: string) {
     addReaction,
     removeReaction,
     setCategoryFilter,
-    clearFeed,
     clearError,
   } = useFeedStore();
 
   useEffect(() => {
     if (projectId) {
-      clearFeed();
       fetchProjectFeed(projectId, true);
     }
   }, [projectId, categoryFilter]);

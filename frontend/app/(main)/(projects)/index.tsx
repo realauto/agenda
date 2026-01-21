@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  ScrollView,
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
@@ -12,7 +12,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../../../src/constants/colors';
-import { ProjectCard } from '../../../src/components/project/ProjectCard';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { Loading } from '../../../src/components/ui/Loading';
 import { projectsApi } from '../../../src/api/projects';
@@ -20,6 +19,44 @@ import { invitesApi } from '../../../src/api/invites';
 import type { Project, ProjectInvite } from '../../../src/types';
 
 type FilterType = 'all' | 'owned' | 'shared' | 'archived';
+
+// Helper function to format relative date
+function formatRelativeDate(dateString?: string): string {
+  if (!dateString) return '-';
+
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return date.toLocaleDateString();
+}
+
+// Helper function to get status color
+function getStatusColor(status: string): string {
+  switch (status) {
+    case 'active': return colors.success;
+    case 'paused': return colors.warning;
+    case 'completed': return colors.primary;
+    case 'archived': return colors.textMuted;
+    default: return colors.textSecondary;
+  }
+}
+
+// Helper function to truncate text
+function truncateText(text: string, maxLength: number): string {
+  if (!text || text.length <= maxLength) return text || '';
+  return text.slice(0, maxLength) + '...';
+}
 
 export default function ProjectsScreen() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -163,19 +200,87 @@ export default function ProjectsScreen() {
     );
   }
 
+  const renderTable = () => (
+    <View style={styles.tableContainer}>
+      {/* Table Header */}
+      <View style={styles.tableHeader}>
+        <View style={[styles.tableCell, styles.colorCell]}>
+          <Text style={styles.headerText}></Text>
+        </View>
+        <View style={[styles.tableCell, styles.nameCell]}>
+          <Text style={styles.headerText}>Name</Text>
+        </View>
+        <View style={[styles.tableCell, styles.descriptionCell]}>
+          <Text style={styles.headerText}>Description</Text>
+        </View>
+        <View style={[styles.tableCell, styles.statusCell]}>
+          <Text style={styles.headerText}>Status</Text>
+        </View>
+        <View style={[styles.tableCell, styles.updatesCell]}>
+          <Text style={styles.headerText}>Updates</Text>
+        </View>
+        <View style={[styles.tableCell, styles.lastUpdatedCell]}>
+          <Text style={styles.headerText}>Last Updated</Text>
+        </View>
+      </View>
+
+      {/* Table Body */}
+      {projects.map((project, index) => (
+        <Pressable
+          key={project._id}
+          style={({ pressed }) => [
+            styles.tableRow,
+            index % 2 === 1 && styles.tableRowAlt,
+            pressed && styles.tableRowHover,
+          ]}
+          onPress={() => router.push(`/(main)/(projects)/${project._id}`)}
+        >
+          <View style={[styles.tableCell, styles.colorCell]}>
+            <View
+              style={[
+                styles.colorDot,
+                { backgroundColor: project.color || colors.primary },
+              ]}
+            />
+          </View>
+          <View style={[styles.tableCell, styles.nameCell]}>
+            <Text style={styles.projectName} numberOfLines={1}>
+              {project.name}
+            </Text>
+          </View>
+          <View style={[styles.tableCell, styles.descriptionCell]}>
+            <Text style={styles.cellText} numberOfLines={1}>
+              {truncateText(project.description || '', 40)}
+            </Text>
+          </View>
+          <View style={[styles.tableCell, styles.statusCell]}>
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(project.status) },
+              ]}
+            >
+              {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+            </Text>
+          </View>
+          <View style={[styles.tableCell, styles.updatesCell]}>
+            <Text style={styles.cellText}>{project.stats?.totalUpdates || 0}</Text>
+          </View>
+          <View style={[styles.tableCell, styles.lastUpdatedCell]}>
+            <Text style={styles.cellText}>
+              {formatRelativeDate(project.updatedAt)}
+            </Text>
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
-      <FlatList
-        data={projects}
-        renderItem={({ item }) => (
-          <ProjectCard
-            project={item}
-            onPress={() => router.push(`/(main)/(projects)/${item._id}`)}
-          />
-        )}
-        keyExtractor={(item) => item._id}
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={projects.length === 0 ? styles.emptyContainer : styles.list}
-        ListHeaderComponent={renderHeader}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -184,7 +289,10 @@ export default function ProjectsScreen() {
             tintColor={colors.primary}
           />
         }
-        ListEmptyComponent={
+      >
+        {renderHeader()}
+
+        {projects.length === 0 ? (
           <EmptyState
             icon={filter === 'archived' ? 'archive' : 'folder'}
             title={filter === 'archived' ? 'No archived projects' : 'No projects yet'}
@@ -200,8 +308,10 @@ export default function ProjectsScreen() {
             actionLabel={filter !== 'shared' && filter !== 'archived' ? 'Create Project' : undefined}
             onAction={filter !== 'shared' && filter !== 'archived' ? () => router.push('/(main)/(projects)/new') : undefined}
           />
-        }
-      />
+        ) : (
+          renderTable()
+        )}
+      </ScrollView>
 
       <TouchableOpacity
         style={styles.fab}
@@ -239,6 +349,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
+  },
+  scrollView: {
+    flex: 1,
   },
   list: {
     paddingBottom: 80,
@@ -352,5 +465,84 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+  },
+  // Table styles
+  tableContainer: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    marginHorizontal: 16,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tableRowAlt: {
+    backgroundColor: '#F9FAFB',
+  },
+  tableRowHover: {
+    backgroundColor: '#E5E7EB',
+  },
+  tableCell: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    justifyContent: 'center',
+  },
+  colorCell: {
+    width: 44,
+    alignItems: 'center',
+  },
+  nameCell: {
+    flex: 2,
+    minWidth: 120,
+  },
+  descriptionCell: {
+    flex: 3,
+    minWidth: 150,
+  },
+  statusCell: {
+    width: 80,
+  },
+  updatesCell: {
+    width: 70,
+    alignItems: 'center',
+  },
+  lastUpdatedCell: {
+    width: 100,
+  },
+  headerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cellText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  projectName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  colorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
 });

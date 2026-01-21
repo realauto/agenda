@@ -380,14 +380,36 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
         });
       }
 
-      // Check team membership
-      const isMember = await teamService.isMember(update.teamId.toString(), request.user!.userId);
-      if (!isMember) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'You are not a member of this team',
+      // Check access based on project
+      const project = await projectService.findById(update.projectId.toString());
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
         });
+      }
+
+      if (project.teamId) {
+        // Team-based project: check team membership
+        const isMember = await teamService.isMember(project.teamId.toString(), request.user!.userId);
+        if (!isMember) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You are not a member of this team',
+          });
+        }
+      } else {
+        // Personal project: check project access
+        const role = await projectService.getUserRole(update.projectId.toString(), request.user!.userId);
+        if (!role) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You do not have access to this project',
+          });
+        }
       }
 
       const author = await userService.findById(update.authorId.toString());
@@ -512,16 +534,34 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
         });
       }
 
-      // Only the author or team admin can delete
+      // Check access based on project
+      const project = await projectService.findById(update.projectId.toString());
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
+        });
+      }
+
+      // Only the author or admin can delete
       const isAuthor = update.authorId.toString() === request.user!.userId;
-      const role = await teamService.getMemberRole(update.teamId.toString(), request.user!.userId);
-      const isAdmin = role === 'admin';
+      let isAdmin = false;
+
+      if (project.teamId) {
+        // Team-based project: check team admin
+        const role = await teamService.getMemberRole(project.teamId.toString(), request.user!.userId);
+        isAdmin = role === 'admin';
+      } else {
+        // Personal project: owner is admin
+        isAdmin = project.ownerId.toString() === request.user!.userId;
+      }
 
       if (!isAuthor && !isAdmin) {
         return reply.code(403).send({
           statusCode: 403,
           error: 'Forbidden',
-          message: 'You can only delete your own updates or be a team admin',
+          message: 'You can only delete your own updates or be an admin',
         });
       }
 
@@ -577,14 +617,36 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
         });
       }
 
-      // Check team membership
-      const isMember = await teamService.isMember(update.teamId.toString(), request.user!.userId);
-      if (!isMember) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'You are not a member of this team',
+      // Check access based on project
+      const project = await projectService.findById(update.projectId.toString());
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
         });
+      }
+
+      if (project.teamId) {
+        // Team-based project: check team membership
+        const isMember = await teamService.isMember(project.teamId.toString(), request.user!.userId);
+        if (!isMember) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You are not a member of this team',
+          });
+        }
+      } else {
+        // Personal project: check project access
+        const role = await projectService.getUserRole(update.projectId.toString(), request.user!.userId);
+        if (!role) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You do not have access to this project',
+          });
+        }
       }
 
       const updatedUpdate = await feedService.addReaction(
@@ -625,6 +687,38 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
           error: 'Not Found',
           message: 'Update not found',
         });
+      }
+
+      // Check access based on project
+      const project = await projectService.findById(update.projectId.toString());
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
+        });
+      }
+
+      if (project.teamId) {
+        // Team-based project: check team membership
+        const isMember = await teamService.isMember(project.teamId.toString(), request.user!.userId);
+        if (!isMember) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You are not a member of this team',
+          });
+        }
+      } else {
+        // Personal project: check project access
+        const role = await projectService.getUserRole(update.projectId.toString(), request.user!.userId);
+        if (!role) {
+          return reply.code(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'You do not have access to this project',
+          });
+        }
       }
 
       const updatedUpdate = await feedService.removeReaction(

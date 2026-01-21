@@ -9,6 +9,7 @@ import {
   TextInput,
   ScrollView,
   Pressable,
+  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -85,9 +86,17 @@ export default function ProjectDetailScreen() {
     }
   };
 
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
-      Alert.alert('Error', 'Please enter an email address');
+      showAlert('Error', 'Please enter an email address');
       return;
     }
 
@@ -97,67 +106,83 @@ export default function ProjectDetailScreen() {
         email: inviteEmail.trim(),
         role: inviteRole,
       });
-      Alert.alert('Success', 'Invite sent successfully');
+      showAlert('Success', 'Invite sent successfully');
       setInviteEmail('');
       setShowShareModal(false);
       loadProject(); // Refresh collaborators
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to send invite');
+      showAlert('Error', error.response?.data?.message || 'Failed to send invite');
     } finally {
       setIsInviting(false);
     }
   };
 
   const handleRemoveCollaborator = async (userId: string, name: string) => {
-    Alert.alert(
-      'Remove Collaborator',
-      `Are you sure you want to remove ${name} from this project?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await projectsApi.removeCollaborator(projectId!, userId);
-              loadProject();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to remove collaborator');
-            }
+    const performRemove = async () => {
+      try {
+        await projectsApi.removeCollaborator(projectId!, userId);
+        loadProject();
+      } catch (error) {
+        showAlert('Error', 'Failed to remove collaborator');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Remove Collaborator\n\nAre you sure you want to remove ${name} from this project?`)) {
+        await performRemove();
+      }
+    } else {
+      Alert.alert(
+        'Remove Collaborator',
+        `Are you sure you want to remove ${name} from this project?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: performRemove,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
-  const handleArchiveToggle = () => {
+  const handleArchiveToggle = async () => {
     setShowSettingsMenu(false);
     const isArchived = project?.status === 'archived';
     const title = isArchived ? 'Unarchive Project' : 'Archive Project';
     const message = isArchived
       ? 'This project will be restored and visible in your projects list.'
       : 'This project will be hidden from your default projects view. You can still access it via the "Archived" filter.';
-    const actionText = isArchived ? 'Unarchive' : 'Archive';
 
-    Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: actionText,
-        style: isArchived ? 'default' : 'destructive',
-        onPress: async () => {
-          setIsUpdatingStatus(true);
-          try {
-            const newStatus: ProjectStatus = isArchived ? 'active' : 'archived';
-            const response = await projectsApi.update(projectId!, { status: newStatus });
-            setProject(response.project);
-          } catch (error) {
-            Alert.alert('Error', `Failed to ${isArchived ? 'unarchive' : 'archive'} project`);
-          } finally {
-            setIsUpdatingStatus(false);
-          }
+    const performAction = async () => {
+      setIsUpdatingStatus(true);
+      try {
+        const newStatus: ProjectStatus = isArchived ? 'active' : 'archived';
+        const response = await projectsApi.update(projectId!, { status: newStatus });
+        setProject(response.project);
+      } catch (error) {
+        showAlert('Error', `Failed to ${isArchived ? 'unarchive' : 'archive'} project`);
+      } finally {
+        setIsUpdatingStatus(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${title}\n\n${message}`)) {
+        await performAction();
+      }
+    } else {
+      const actionText = isArchived ? 'Unarchive' : 'Archive';
+      Alert.alert(title, message, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: actionText,
+          style: isArchived ? 'default' : 'destructive',
+          onPress: performAction,
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   if (projectLoading || !project) {
@@ -186,14 +211,20 @@ export default function ProjectDetailScreen() {
   };
 
   const handleDelete = async (updateId: string) => {
-    Alert.alert('Delete Update', 'Are you sure you want to delete this update?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => deleteUpdate(updateId),
-      },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete Update\n\nAre you sure you want to delete this update?')) {
+        await deleteUpdate(updateId);
+      }
+    } else {
+      Alert.alert('Delete Update', 'Are you sure you want to delete this update?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteUpdate(updateId),
+        },
+      ]);
+    }
   };
 
   const ProjectHeader = () => (

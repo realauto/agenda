@@ -46,7 +46,7 @@ export default function LoginScreen() {
 
     try {
       await login({ email, password });
-      router.replace('/(main)/(feed)');
+      router.replace('/(main)/(projects)');
     } catch {
       // Error is handled by the store
     }

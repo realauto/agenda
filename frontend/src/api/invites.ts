@@ -1,54 +1,27 @@
 import apiClient from './client';
-import type { Invite, TeamRole, Team } from '../types';
+import type { ProjectInvite, Project } from '../types';
 
-export interface CreateInviteInput {
-  email: string;
-  role?: TeamRole;
-}
-
+// Project invites API for current user
 export const invitesApi = {
-  create: async (teamId: string, data: CreateInviteInput): Promise<{ invite: Invite }> => {
-    const response = await apiClient.post<{ invite: Invite }>(
-      `/teams/${teamId}/invites`,
-      data
-    );
+  // Get pending invites for current user
+  getPending: async (): Promise<{ invites: ProjectInvite[] }> => {
+    const response = await apiClient.get<{ invites: ProjectInvite[] }>('/invites');
     return response.data;
   },
 
-  getByTeam: async (teamId: string): Promise<{ invites: Invite[] }> => {
-    const response = await apiClient.get<{ invites: Invite[] }>(
-      `/teams/${teamId}/invites`
-    );
-    return response.data;
-  },
-
-  revoke: async (teamId: string, inviteId: string): Promise<void> => {
-    await apiClient.delete(`/teams/${teamId}/invites/${inviteId}`);
-  },
-
-  resend: async (teamId: string, inviteId: string): Promise<{ invite: Invite }> => {
-    const response = await apiClient.post<{ invite: Invite }>(
-      `/teams/${teamId}/invites/${inviteId}/resend`
-    );
-    return response.data;
-  },
-
-  getByToken: async (token: string): Promise<{ invite: Partial<Invite> }> => {
-    const response = await apiClient.get<{ invite: Partial<Invite> }>(
-      `/invites/${token}`
-    );
-    return response.data;
-  },
-
-  accept: async (token: string): Promise<{ message: string; team: Team }> => {
-    const response = await apiClient.post<{ message: string; team: Team }>(
+  // Accept a project invite
+  accept: async (token: string): Promise<{ message: string; project: Project }> => {
+    const response = await apiClient.post<{ message: string; project: Project }>(
       `/invites/${token}/accept`
     );
     return response.data;
   },
 
-  getPending: async (): Promise<{ invites: Invite[] }> => {
-    const response = await apiClient.get<{ invites: Invite[] }>('/invites/pending');
+  // Decline a project invite
+  decline: async (token: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>(
+      `/invites/${token}/decline`
+    );
     return response.data;
   },
 };

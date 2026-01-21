@@ -1,22 +1,26 @@
 import { Collection, ObjectId } from 'mongodb';
-import type { Project } from '../types/index.js';
+import type { Project, ProjectRole, ProjectInvite, ProjectInviteStatus } from '../types/index.js';
 import type { CreateProjectInput, UpdateProjectInput } from '../models/Project.js';
 import { generateSlug } from '../utils/index.js';
+import crypto from 'crypto';
 
 export class ProjectService {
-  constructor(private collection: Collection<Project>) {}
+  constructor(
+    private collection: Collection<Project>,
+    private inviteCollection?: Collection<ProjectInvite>
+  ) {}
 
-  async create(input: CreateProjectInput, teamId: string, createdBy: string): Promise<Project> {
+  async create(input: CreateProjectInput, ownerId: string): Promise<Project> {
     const now = new Date();
 
     const project: Omit<Project, '_id'> = {
       name: input.name,
       slug: generateSlug(input.name),
       description: input.description,
-      teamId: new ObjectId(teamId),
-      createdBy: new ObjectId(createdBy),
+      ownerId: new ObjectId(ownerId),
+      collaborators: [],
       status: 'active',
-      visibility: input.visibility ?? 'team',
+      visibility: input.visibility ?? 'collaborators',
       color: input.color,
       tags: input.tags ?? [],
       stats: {
@@ -34,13 +38,36 @@ export class ProjectService {
     return this.collection.findOne({ _id: new ObjectId(id) });
   }
 
-  async findBySlug(slug: string, teamId: string): Promise<Project | null> {
-    return this.collection.findOne({ slug, teamId: new ObjectId(teamId) });
+  async findBySlug(slug: string, ownerId: string): Promise<Project | null> {
+    return this.collection.findOne({ slug, ownerId: new ObjectId(ownerId) });
   }
 
-  async findByTeamId(teamId: string): Promise<Project[]> {
+  // Get all projects where user is owner or collaborator
+  async findByUserId(userId: string): Promise<Project[]> {
+    const userObjectId = new ObjectId(userId);
     return this.collection
-      .find({ teamId: new ObjectId(teamId) })
+      .find({
+        $or: [
+          { ownerId: userObjectId },
+          { 'collaborators.userId': userObjectId },
+        ],
+      })
+      .sort({ updatedAt: -1 })
+      .toArray();
+  }
+
+  // Get projects owned by user
+  async findOwnedByUser(userId: string): Promise<Project[]> {
+    return this.collection
+      .find({ ownerId: new ObjectId(userId) })
+      .sort({ updatedAt: -1 })
+      .toArray();
+  }
+
+  // Get projects where user is a collaborator (not owner)
+  async findSharedWithUser(userId: string): Promise<Project[]> {
+    return this.collection
+      .find({ 'collaborators.userId': new ObjectId(userId) })
       .sort({ updatedAt: -1 })
       .toArray();
   }
@@ -62,6 +89,165 @@ export class ProjectService {
 
   async delete(id: string): Promise<boolean> {
     const result = await this.collection.deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount === 1;
+  }
+
+  // Check if user has access to project
+  async getUserRole(projectId: string, userId: string): Promise<ProjectRole | null> {
+    const project = await this.findById(projectId);
+    if (!project) return null;
+
+    if (project.ownerId.toString() === userId) {
+      return 'owner';
+    }
+
+    const collaborator = project.collaborators.find(
+      (c) => c.userId.toString() === userId
+    );
+
+    return collaborator?.role ?? null;
+  }
+
+  // Add collaborator to project
+  async addCollaborator(
+    projectId: string,
+    userId: string,
+    role: ProjectRole
+  ): Promise<Project | null> {
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(projectId) },
+      {
+        $push: {
+          collaborators: {
+            userId: new ObjectId(userId),
+            role,
+            addedAt: new Date(),
+          },
+        },
+        $set: { updatedAt: new Date() },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
+  }
+
+  // Remove collaborator from project
+  async removeCollaborator(projectId: string, userId: string): Promise<Project | null> {
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(projectId) },
+      {
+        $pull: {
+          collaborators: { userId: new ObjectId(userId) },
+        },
+        $set: { updatedAt: new Date() },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
+  }
+
+  // Update collaborator role
+  async updateCollaboratorRole(
+    projectId: string,
+    userId: string,
+    role: ProjectRole
+  ): Promise<Project | null> {
+    const result = await this.collection.findOneAndUpdate(
+      {
+        _id: new ObjectId(projectId),
+        'collaborators.userId': new ObjectId(userId),
+      },
+      {
+        $set: {
+          'collaborators.$.role': role,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
+  }
+
+  // Create project invite
+  async createInvite(
+    projectId: string,
+    invitedBy: string,
+    email: string,
+    role: ProjectRole
+  ): Promise<ProjectInvite | null> {
+    if (!this.inviteCollection) return null;
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    const invite: Omit<ProjectInvite, '_id'> = {
+      projectId: new ObjectId(projectId),
+      invitedBy: new ObjectId(invitedBy),
+      email: email.toLowerCase(),
+      role,
+      token,
+      status: 'pending',
+      expiresAt,
+      createdAt: now,
+    };
+
+    const result = await this.inviteCollection.insertOne(invite as ProjectInvite);
+    return { ...invite, _id: result.insertedId } as ProjectInvite;
+  }
+
+  // Find invite by token
+  async findInviteByToken(token: string): Promise<ProjectInvite | null> {
+    if (!this.inviteCollection) return null;
+    return this.inviteCollection.findOne({ token });
+  }
+
+  // Find pending invites for a project
+  async findInvitesByProjectId(projectId: string): Promise<ProjectInvite[]> {
+    if (!this.inviteCollection) return [];
+    return this.inviteCollection
+      .find({ projectId: new ObjectId(projectId), status: 'pending' })
+      .toArray();
+  }
+
+  // Find pending invites for an email
+  async findInvitesByEmail(email: string): Promise<ProjectInvite[]> {
+    if (!this.inviteCollection) return [];
+    return this.inviteCollection
+      .find({ email: email.toLowerCase(), status: 'pending' })
+      .toArray();
+  }
+
+  // Update invite status
+  async updateInviteStatus(
+    token: string,
+    status: ProjectInviteStatus,
+    acceptedBy?: string
+  ): Promise<ProjectInvite | null> {
+    if (!this.inviteCollection) return null;
+
+    const updateData: Partial<ProjectInvite> = { status };
+    if (acceptedBy) {
+      updateData.acceptedAt = new Date();
+      updateData.acceptedBy = new ObjectId(acceptedBy);
+    }
+
+    return this.inviteCollection.findOneAndUpdate(
+      { token },
+      { $set: updateData },
+      { returnDocument: 'after' }
+    );
+  }
+
+  // Revoke invite
+  async revokeInvite(inviteId: string): Promise<boolean> {
+    if (!this.inviteCollection) return false;
+    const result = await this.inviteCollection.deleteOne({
+      _id: new ObjectId(inviteId),
+    });
     return result.deletedCount === 1;
   }
 

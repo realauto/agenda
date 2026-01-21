@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,49 +9,41 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../../src/constants/colors';
 import { Input } from '../../../src/components/ui/Input';
 import { Button } from '../../../src/components/ui/Button';
-import { Loading } from '../../../src/components/ui/Loading';
-import { useTeamStore } from '../../../src/store/teamStore';
 import { projectsApi } from '../../../src/api/projects';
-import type { Team } from '../../../src/types';
+import type { ProjectVisibility } from '../../../src/types';
 
 const PROJECT_COLORS = [
   '#EF4444', '#F97316', '#F59E0B', '#10B981',
   '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899',
 ];
 
-export default function NewProjectScreen() {
-  const { teamId: preselectedTeamId } = useLocalSearchParams<{ teamId?: string }>();
+const VISIBILITY_OPTIONS: { value: ProjectVisibility; label: string; description: string }[] = [
+  { value: 'collaborators', label: 'Collaborators', description: 'Only you and invited people' },
+  { value: 'private', label: 'Private', description: 'Only you can access' },
+  { value: 'public', label: 'Public', description: 'Anyone can view' },
+];
 
+export default function NewProjectScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedTeamId, setSelectedTeamId] = useState(preselectedTeamId || '');
   const [color, setColor] = useState(PROJECT_COLORS[0]);
+  const [visibility, setVisibility] = useState<ProjectVisibility>('collaborators');
   const [tags, setTags] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; team?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { teams, fetchTeams, isLoading } = useTeamStore();
-
-  useEffect(() => {
-    fetchTeams();
-  }, []);
-
   const validate = (): boolean => {
-    const newErrors: { name?: string; team?: string } = {};
+    const newErrors: { name?: string } = {};
 
     if (!name.trim()) {
       newErrors.name = 'Project name is required';
     } else if (name.length < 2) {
       newErrors.name = 'Project name must be at least 2 characters';
-    }
-
-    if (!selectedTeamId) {
-      newErrors.team = 'Please select a team';
     }
 
     setErrors(newErrors);
@@ -68,10 +60,11 @@ export default function NewProjectScreen() {
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
 
-      const response = await projectsApi.create(selectedTeamId, {
+      const response = await projectsApi.create({
         name: name.trim(),
         description: description.trim() || undefined,
         color,
+        visibility,
         tags: tagList.length > 0 ? tagList : undefined,
       });
 
@@ -83,14 +76,6 @@ export default function NewProjectScreen() {
     }
   };
 
-  if (isLoading && teams.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Loading message="Loading teams..." />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView
@@ -101,37 +86,6 @@ export default function NewProjectScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Team Selection */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Team</Text>
-            {errors.team && <Text style={styles.error}>{errors.team}</Text>}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.teamList}
-            >
-              {teams.map((team) => (
-                <TouchableOpacity
-                  key={team._id}
-                  style={[
-                    styles.teamOption,
-                    selectedTeamId === team._id && styles.teamOptionActive,
-                  ]}
-                  onPress={() => setSelectedTeamId(team._id)}
-                >
-                  <Text
-                    style={[
-                      styles.teamOptionText,
-                      selectedTeamId === team._id && styles.teamOptionTextActive,
-                    ]}
-                  >
-                    {team.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
           <Input
             label="Project Name"
             placeholder="Enter project name"
@@ -148,6 +102,38 @@ export default function NewProjectScreen() {
             multiline
             numberOfLines={3}
           />
+
+          {/* Visibility Selection */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Who can access</Text>
+            {VISIBILITY_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.visibilityOption,
+                  visibility === option.value && styles.visibilityOptionActive,
+                ]}
+                onPress={() => setVisibility(option.value)}
+              >
+                <View style={styles.visibilityContent}>
+                  <Text
+                    style={[
+                      styles.visibilityLabel,
+                      visibility === option.value && styles.visibilityLabelActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  <Text style={styles.visibilityDescription}>{option.description}</Text>
+                </View>
+                {visibility === option.value && (
+                  <View style={styles.checkmark}>
+                    <Text style={styles.checkmarkText}>✓</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
 
           {/* Color Selection */}
           <View style={styles.section}>
@@ -214,33 +200,47 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
   },
-  error: {
-    fontSize: 12,
-    color: colors.error,
-    marginBottom: 4,
-  },
-  teamList: {
-    marginBottom: 8,
-  },
-  teamOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+  visibilityOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    marginRight: 8,
+    marginBottom: 8,
   },
-  teamOptionActive: {
-    backgroundColor: colors.primary,
+  visibilityOptionActive: {
     borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
   },
-  teamOptionText: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  visibilityContent: {
+    flex: 1,
   },
-  teamOptionTextActive: {
-    color: '#fff',
+  visibilityLabel: {
+    fontSize: 15,
     fontWeight: '500',
+    color: colors.text,
+  },
+  visibilityLabelActive: {
+    color: colors.primary,
+  },
+  visibilityDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  checkmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmarkText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   colorList: {
     flexDirection: 'row',

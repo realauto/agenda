@@ -62,7 +62,7 @@ export default function RegisterScreen() {
 
     try {
       await register({ username, email, password });
-      router.replace('/(main)/(feed)');
+      router.replace('/(main)/(projects)');
     } catch {
       // Error is handled by the store
     }

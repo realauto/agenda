@@ -62,7 +62,14 @@ export interface Team {
 
 // Project types
 export type ProjectStatus = 'active' | 'paused' | 'completed' | 'archived';
-export type ProjectVisibility = 'public' | 'team' | 'private';
+export type ProjectVisibility = 'public' | 'private' | 'collaborators';
+export type ProjectRole = 'owner' | 'editor' | 'viewer';
+
+export interface ProjectCollaborator {
+  userId: ObjectId;
+  role: ProjectRole;
+  addedAt: Date;
+}
 
 export interface ProjectStats {
   totalUpdates: number;
@@ -74,8 +81,9 @@ export interface Project {
   name: string;
   slug: string;
   description?: string;
-  teamId: ObjectId;
-  createdBy: ObjectId;
+  ownerId: ObjectId;
+  collaborators: ProjectCollaborator[];
+  teamId?: ObjectId; // Optional - for team organization
   status: ProjectStatus;
   visibility: ProjectVisibility;
   color?: string;
@@ -84,6 +92,23 @@ export interface Project {
   stats: ProjectStats;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Project Invite types
+export type ProjectInviteStatus = 'pending' | 'accepted' | 'declined' | 'expired';
+
+export interface ProjectInvite {
+  _id: ObjectId;
+  projectId: ObjectId;
+  invitedBy: ObjectId;
+  email: string;
+  role: ProjectRole;
+  token: string;
+  status: ProjectInviteStatus;
+  expiresAt: Date;
+  acceptedAt?: Date;
+  acceptedBy?: ObjectId;
+  createdAt: Date;
 }
 
 // Update types

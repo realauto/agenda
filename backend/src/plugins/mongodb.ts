@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 import { MongoClient, Db, Collection } from 'mongodb';
 import { databaseConfig } from '../config/index.js';
-import type { User, Team, Project, Update, Invite } from '../types/index.js';
+import type { User, Team, Project, Update, Invite, ProjectInvite } from '../types/index.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -15,6 +15,7 @@ declare module 'fastify' {
         projects: Collection<Project>;
         updates: Collection<Update>;
         invites: Collection<Invite>;
+        projectInvites: Collection<ProjectInvite>;
       };
     };
   }
@@ -36,6 +37,7 @@ const mongoPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       projects: db.collection<Project>('projects'),
       updates: db.collection<Update>('updates'),
       invites: db.collection<Invite>('invites'),
+      projectInvites: db.collection<ProjectInvite>('projectInvites'),
     };
 
     // Create indexes
@@ -43,13 +45,18 @@ const mongoPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
     await collections.users.createIndex({ username: 1 }, { unique: true });
     await collections.teams.createIndex({ slug: 1 }, { unique: true });
     await collections.teams.createIndex({ 'members.userId': 1 });
-    await collections.projects.createIndex({ teamId: 1 });
-    await collections.projects.createIndex({ slug: 1, teamId: 1 }, { unique: true });
+    await collections.projects.createIndex({ ownerId: 1 });
+    await collections.projects.createIndex({ 'collaborators.userId': 1 });
+    await collections.projects.createIndex({ slug: 1, ownerId: 1 }, { unique: true });
+    await collections.projects.createIndex({ teamId: 1 }, { sparse: true });
     await collections.updates.createIndex({ projectId: 1, createdAt: -1 });
     await collections.updates.createIndex({ teamId: 1, createdAt: -1 });
     await collections.updates.createIndex({ authorId: 1, createdAt: -1 });
     await collections.invites.createIndex({ token: 1 }, { unique: true });
     await collections.invites.createIndex({ email: 1, teamId: 1 });
+    await collections.projectInvites.createIndex({ token: 1 }, { unique: true });
+    await collections.projectInvites.createIndex({ email: 1, projectId: 1 });
+    await collections.projectInvites.createIndex({ projectId: 1 });
 
     fastify.decorate('mongo', {
       client,

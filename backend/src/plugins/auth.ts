@@ -2,15 +2,12 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 import fastifyJwt from '@fastify/jwt';
 import { jwtConfig } from '../config/index.js';
-import type { JwtPayload } from '../types/index.js';
+import type { JwtPayload, RequestUser } from '../types/index.js';
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
     payload: JwtPayload;
-    user: {
-      userId: string;
-      username: string;
-    };
+    user: RequestUser;
   }
 }
 

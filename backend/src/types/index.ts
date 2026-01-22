@@ -199,12 +199,9 @@ export interface ApiError {
   message: string;
 }
 
-// Request context
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: {
-      userId: string;
-      username: string;
-    };
-  }
+// Request context - extended user type for JWT verification
+export interface RequestUser {
+  userId: string;
+  username: string;
+  type?: 'access' | 'refresh';
 }

@@ -47,15 +47,16 @@ export class UserService {
   }
 
   async update(id: string, input: UpdateUserInput): Promise<User | null> {
-    const updateData: Partial<User> = {
-      ...input,
+    const { settings, ...rest } = input;
+    const updateData: Record<string, unknown> = {
+      ...rest,
       updatedAt: new Date(),
     };
 
-    if (input.settings) {
+    if (settings) {
       const user = await this.findById(id);
       if (user) {
-        updateData.settings = { ...user.settings, ...input.settings };
+        updateData.settings = { ...user.settings, ...settings };
       }
     }
 

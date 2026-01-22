@@ -288,4 +288,11 @@ export class ProjectService {
 
     return result;
   }
+
+  async findByTeamId(teamId: string): Promise<Project[]> {
+    return this.collection
+      .find({ teamId: new ObjectId(teamId) })
+      .sort({ updatedAt: -1 })
+      .toArray();
+  }
 }

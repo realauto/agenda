@@ -1,12 +1,12 @@
 import { Collection, ObjectId, Filter } from 'mongodb';
-import type { Update, UpdateCategory, Reaction, Comment } from '../types/index.js';
+import type { Update, UpdateCategory, Reaction, Comment, User } from '../types/index.js';
 import type { CreateUpdateInput, UpdateUpdateInput, FeedQueryInput } from '../models/Update.js';
 import { extractMentions, contentToHtml, parsePagination, encodeCursor } from '../utils/index.js';
 
 export class FeedService {
   constructor(
     private collection: Collection<Update>,
-    private usersCollection: Collection<{ _id: ObjectId; username: string }>
+    private usersCollection: Collection<User>
   ) {}
 
   async create(input: CreateUpdateInput, teamId: string | null, authorId: string): Promise<Update> {

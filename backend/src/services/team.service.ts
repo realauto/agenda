@@ -52,15 +52,16 @@ export class TeamService {
   }
 
   async update(id: string, input: UpdateTeamInput): Promise<Team | null> {
-    const updateData: Partial<Team> = {
-      ...input,
+    const { settings, ...rest } = input;
+    const updateData: Record<string, unknown> = {
+      ...rest,
       updatedAt: new Date(),
     };
 
-    if (input.settings) {
+    if (settings) {
       const team = await this.findById(id);
       if (team) {
-        updateData.settings = { ...team.settings, ...input.settings };
+        updateData.settings = { ...team.settings, ...settings };
       }
     }
 

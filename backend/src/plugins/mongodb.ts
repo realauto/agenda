@@ -69,7 +69,7 @@ const mongoPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       fastify.log.info('MongoDB connection closed');
     });
   } catch (error) {
-    fastify.log.error('Failed to connect to MongoDB:', error);
+    fastify.log.error({ err: error }, 'Failed to connect to MongoDB');
     throw error;
   }
 };

@@ -1,0 +1,40 @@
+export default {
+  expo: {
+    name: "ProjectLog",
+    slug: "projectlog",
+    version: "1.0.0",
+    orientation: "portrait",
+    icon: "./assets/icon.png",
+    scheme: "projectlog",
+    userInterfaceStyle: "automatic",
+    splash: {
+      image: "./assets/splash.png",
+      resizeMode: "contain",
+      backgroundColor: "#ffffff"
+    },
+    assetBundlePatterns: ["**/*"],
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: "com.projectlog.app"
+    },
+    android: {
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#ffffff"
+      },
+      package: "com.projectlog.app"
+    },
+    web: {
+      bundler: "metro",
+      output: "single",
+      favicon: "./assets/favicon.png"
+    },
+    plugins: ["expo-router", "expo-secure-store", "expo-font"],
+    experiments: {
+      typedRoutes: true
+    },
+    extra: {
+      apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://rb2tqems3h.ap-southeast-1.awsapprunner.com/api"
+    }
+  }
+};

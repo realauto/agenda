@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 
 interface LoadingProps {
   message?: string;
@@ -8,10 +8,12 @@ interface LoadingProps {
 }
 
 export function Loading({ message, size = 'large' }: LoadingProps) {
+  const colors = useColors();
+
   return (
     <View style={styles.container}>
       <ActivityIndicator size={size} color={colors.primary} />
-      {message && <Text style={styles.message}>{message}</Text>}
+      {message && <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>}
     </View>
   );
 }
@@ -22,13 +24,15 @@ interface LoadingOverlayProps {
 }
 
 export function LoadingOverlay({ visible, message }: LoadingOverlayProps) {
+  const colors = useColors();
+
   if (!visible) return null;
 
   return (
     <View style={styles.overlay}>
-      <View style={styles.overlayContent}>
+      <View style={[styles.overlayContent, { backgroundColor: colors.surface }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        {message && <Text style={styles.overlayMessage}>{message}</Text>}
+        {message && <Text style={[styles.overlayMessage, { color: colors.text }]}>{message}</Text>}
       </View>
     </View>
   );
@@ -44,7 +48,6 @@ const styles = StyleSheet.create({
   message: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.textSecondary,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -54,7 +57,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   overlayContent: {
-    backgroundColor: colors.surface,
     padding: 24,
     borderRadius: 12,
     alignItems: 'center',
@@ -62,6 +64,5 @@ const styles = StyleSheet.create({
   overlayMessage: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.text,
   },
 });

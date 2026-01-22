@@ -14,7 +14,7 @@ import {
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../../src/constants/colors';
+import { useColors } from '../../../src/hooks/useColors';
 import { Card } from '../../../src/components/ui/Card';
 import { Badge } from '../../../src/components/ui/Badge';
 import { Loading } from '../../../src/components/ui/Loading';
@@ -24,16 +24,10 @@ import { FeedList } from '../../../src/components/feed/FeedList';
 import { CategoryFilter } from '../../../src/components/feed/CategoryFilter';
 import { useProjectFeed } from '../../../src/hooks/useFeed';
 import { projectsApi, type CollaboratorsResponse } from '../../../src/api/projects';
-import type { Project, ProjectRole, User, ProjectStatus } from '../../../src/types';
-
-const statusColors: Record<string, string> = {
-  active: colors.success,
-  paused: colors.warning,
-  completed: colors.primary,
-  archived: colors.textMuted,
-};
+import type { Project, ProjectRole, ProjectStatus } from '../../../src/types';
 
 export default function ProjectDetailScreen() {
+  const colors = useColors();
   const { projectId } = useLocalSearchParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [userRole, setUserRole] = useState<ProjectRole>('viewer');
@@ -45,6 +39,13 @@ export default function ProjectDetailScreen() {
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
   const [isInviting, setIsInviting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const statusColors: Record<string, string> = {
+    active: colors.success,
+    paused: colors.warning,
+    completed: colors.primary,
+    archived: colors.textMuted,
+  };
 
   const {
     updates,
@@ -187,7 +188,7 @@ export default function ProjectDetailScreen() {
 
   if (projectLoading || !project) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]}>
         <Loading message="Loading project..." />
       </SafeAreaView>
     );
@@ -234,7 +235,7 @@ export default function ProjectDetailScreen() {
           {project.color && (
             <View style={[styles.colorDot, { backgroundColor: project.color }]} />
           )}
-          <Text style={styles.projectName}>{project.name}</Text>
+          <Text style={[styles.projectName, { color: colors.text }]}>{project.name}</Text>
           <Badge
             label={project.status}
             color={statusColors[project.status]}
@@ -251,28 +252,28 @@ export default function ProjectDetailScreen() {
         </View>
 
         {project.description && (
-          <Text style={styles.projectDescription}>{project.description}</Text>
+          <Text style={[styles.projectDescription, { color: colors.textSecondary }]}>{project.description}</Text>
         )}
 
         {project.tags && project.tags.length > 0 && (
           <View style={styles.tags}>
             {project.tags.map((tag) => (
-              <View key={tag} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
+              <View key={tag} style={[styles.tag, { backgroundColor: colors.backgroundSecondary }]}>
+                <Text style={[styles.tagText, { color: colors.textSecondary }]}>{tag}</Text>
               </View>
             ))}
           </View>
         )}
 
-        <View style={styles.projectStats}>
+        <View style={[styles.projectStats, { borderTopColor: colors.borderLight }]}>
           <View style={styles.stat}>
             <Feather name="message-circle" size={16} color={colors.textMuted} />
-            <Text style={styles.statText}>{project.stats.totalUpdates} updates</Text>
+            <Text style={[styles.statText, { color: colors.textMuted }]}>{project.stats.totalUpdates} updates</Text>
           </View>
 
           <View style={styles.stat}>
             <Feather name="users" size={16} color={colors.textMuted} />
-            <Text style={styles.statText}>
+            <Text style={[styles.statText, { color: colors.textMuted }]}>
               {(collaborators?.collaborators.length ?? 0) + 1} people
             </Text>
           </View>
@@ -280,16 +281,16 @@ export default function ProjectDetailScreen() {
 
         {/* Collaborators Preview */}
         {collaborators && (
-          <View style={styles.collaboratorsSection}>
+          <View style={[styles.collaboratorsSection, { borderTopColor: colors.borderLight }]}>
             <View style={styles.collaboratorsHeader}>
-              <Text style={styles.collaboratorsTitle}>People</Text>
+              <Text style={[styles.collaboratorsTitle, { color: colors.text }]}>People</Text>
               {canEdit && (
                 <TouchableOpacity
                   style={styles.shareButton}
                   onPress={() => setShowShareModal(true)}
                 >
                   <Feather name="user-plus" size={16} color={colors.primary} />
-                  <Text style={styles.shareButtonText}>Share</Text>
+                  <Text style={[styles.shareButtonText, { color: colors.primary }]}>Share</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -303,10 +304,10 @@ export default function ProjectDetailScreen() {
                   size={32}
                 />
                 <View style={styles.collaboratorInfo}>
-                  <Text style={styles.collaboratorName}>
+                  <Text style={[styles.collaboratorName, { color: colors.text }]}>
                     {collaborators.owner.displayName || collaborators.owner.username}
                   </Text>
-                  <Text style={styles.collaboratorRole}>Owner</Text>
+                  <Text style={[styles.collaboratorRole, { color: colors.textMuted }]}>Owner</Text>
                 </View>
               </View>
             )}
@@ -320,10 +321,10 @@ export default function ProjectDetailScreen() {
                   size={32}
                 />
                 <View style={styles.collaboratorInfo}>
-                  <Text style={styles.collaboratorName}>
+                  <Text style={[styles.collaboratorName, { color: colors.text }]}>
                     {collab.user?.displayName || collab.user?.username || 'User'}
                   </Text>
-                  <Text style={styles.collaboratorRole}>
+                  <Text style={[styles.collaboratorRole, { color: colors.textMuted }]}>
                     {collab.role.charAt(0).toUpperCase() + collab.role.slice(1)}
                   </Text>
                 </View>
@@ -347,7 +348,7 @@ export default function ProjectDetailScreen() {
                 style={styles.viewAllButton}
                 onPress={() => setShowShareModal(true)}
               >
-                <Text style={styles.viewAllText}>
+                <Text style={[styles.viewAllText, { color: colors.primary }]}>
                   View all {collaborators.collaborators.length + 1} people
                 </Text>
               </TouchableOpacity>
@@ -355,12 +356,12 @@ export default function ProjectDetailScreen() {
 
             {/* Pending Invites */}
             {canEdit && collaborators.pendingInvites.length > 0 && (
-              <View style={styles.pendingSection}>
-                <Text style={styles.pendingTitle}>Pending invites</Text>
+              <View style={[styles.pendingSection, { borderTopColor: colors.borderLight }]}>
+                <Text style={[styles.pendingTitle, { color: colors.textMuted }]}>Pending invites</Text>
                 {collaborators.pendingInvites.map((invite) => (
                   <View key={invite._id} style={styles.pendingRow}>
                     <Feather name="mail" size={16} color={colors.textMuted} />
-                    <Text style={styles.pendingEmail}>{invite.email}</Text>
+                    <Text style={[styles.pendingEmail, { color: colors.textSecondary }]}>{invite.email}</Text>
                     <TouchableOpacity
                       onPress={() =>
                         projectsApi.revokeInvite(projectId!, invite._id).then(loadProject)
@@ -381,7 +382,7 @@ export default function ProjectDetailScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['left', 'right']}>
       <FeedList
         updates={updates}
         isLoading={isLoading}
@@ -405,7 +406,7 @@ export default function ProjectDetailScreen() {
 
       {canEdit && (
         <TouchableOpacity
-          style={styles.fab}
+          style={[styles.fab, { backgroundColor: colors.primary }]}
           onPress={() => router.push(`/(main)/(feed)/new?projectId=${projectId}`)}
           activeOpacity={0.8}
         >
@@ -420,9 +421,9 @@ export default function ProjectDetailScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowShareModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Share Project</Text>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Share Project</Text>
             <TouchableOpacity onPress={() => setShowShareModal(false)}>
               <Feather name="x" size={24} color={colors.text} />
             </TouchableOpacity>
@@ -431,10 +432,10 @@ export default function ProjectDetailScreen() {
           <ScrollView style={styles.modalContent}>
             {/* Invite Form */}
             <View style={styles.inviteSection}>
-              <Text style={styles.sectionTitle}>Invite people</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Invite people</Text>
               <View style={styles.inviteForm}>
                 <TextInput
-                  style={styles.emailInput}
+                  style={[styles.emailInput, { backgroundColor: colors.backgroundSecondary, color: colors.text }]}
                   placeholder="Enter email address"
                   placeholderTextColor={colors.textMuted}
                   value={inviteEmail}
@@ -446,14 +447,16 @@ export default function ProjectDetailScreen() {
                   <TouchableOpacity
                     style={[
                       styles.roleOption,
-                      inviteRole === 'editor' && styles.roleOptionActive,
+                      { borderColor: colors.border },
+                      inviteRole === 'editor' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
                     ]}
                     onPress={() => setInviteRole('editor')}
                   >
                     <Text
                       style={[
                         styles.roleText,
-                        inviteRole === 'editor' && styles.roleTextActive,
+                        { color: colors.textSecondary },
+                        inviteRole === 'editor' && { color: colors.primary },
                       ]}
                     >
                       Editor
@@ -462,14 +465,16 @@ export default function ProjectDetailScreen() {
                   <TouchableOpacity
                     style={[
                       styles.roleOption,
-                      inviteRole === 'viewer' && styles.roleOptionActive,
+                      { borderColor: colors.border },
+                      inviteRole === 'viewer' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
                     ]}
                     onPress={() => setInviteRole('viewer')}
                   >
                     <Text
                       style={[
                         styles.roleText,
-                        inviteRole === 'viewer' && styles.roleTextActive,
+                        { color: colors.textSecondary },
+                        inviteRole === 'viewer' && { color: colors.primary },
                       ]}
                     >
                       Viewer
@@ -487,21 +492,21 @@ export default function ProjectDetailScreen() {
 
             {/* Current Collaborators */}
             <View style={styles.currentSection}>
-              <Text style={styles.sectionTitle}>People with access</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>People with access</Text>
 
               {/* Owner */}
               {collaborators?.owner && (
-                <View style={styles.memberRow}>
+                <View style={[styles.memberRow, { borderBottomColor: colors.borderLight }]}>
                   <Avatar
                     uri={collaborators.owner.avatar}
                     name={collaborators.owner.displayName || collaborators.owner.username}
                     size={40}
                   />
                   <View style={styles.memberInfo}>
-                    <Text style={styles.memberName}>
+                    <Text style={[styles.memberName, { color: colors.text }]}>
                       {collaborators.owner.displayName || collaborators.owner.username}
                     </Text>
-                    <Text style={styles.memberEmail}>{collaborators.owner.email}</Text>
+                    <Text style={[styles.memberEmail, { color: colors.textMuted }]}>{collaborators.owner.email}</Text>
                   </View>
                   <Badge label="Owner" color={colors.primary} />
                 </View>
@@ -509,17 +514,17 @@ export default function ProjectDetailScreen() {
 
               {/* Collaborators */}
               {collaborators?.collaborators.map((collab) => (
-                <View key={collab.userId} style={styles.memberRow}>
+                <View key={collab.userId} style={[styles.memberRow, { borderBottomColor: colors.borderLight }]}>
                   <Avatar
                     uri={collab.user?.avatar}
                     name={collab.user?.displayName || collab.user?.username || 'User'}
                     size={40}
                   />
                   <View style={styles.memberInfo}>
-                    <Text style={styles.memberName}>
+                    <Text style={[styles.memberName, { color: colors.text }]}>
                       {collab.user?.displayName || collab.user?.username || 'User'}
                     </Text>
-                    <Text style={styles.memberEmail}>{collab.user?.email}</Text>
+                    <Text style={[styles.memberEmail, { color: colors.textMuted }]}>{collab.user?.email}</Text>
                   </View>
                   <Badge
                     label={collab.role.charAt(0).toUpperCase() + collab.role.slice(1)}
@@ -544,17 +549,17 @@ export default function ProjectDetailScreen() {
               {/* Pending Invites */}
               {collaborators?.pendingInvites && collaborators.pendingInvites.length > 0 && (
                 <>
-                  <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                  <Text style={[styles.sectionTitle, { marginTop: 24, color: colors.text }]}>
                     Pending invites
                   </Text>
                   {collaborators.pendingInvites.map((invite) => (
-                    <View key={invite._id} style={styles.memberRow}>
-                      <View style={styles.pendingAvatar}>
+                    <View key={invite._id} style={[styles.memberRow, { borderBottomColor: colors.borderLight }]}>
+                      <View style={[styles.pendingAvatar, { backgroundColor: colors.backgroundSecondary }]}>
                         <Feather name="mail" size={20} color={colors.textMuted} />
                       </View>
                       <View style={styles.memberInfo}>
-                        <Text style={styles.memberName}>{invite.email}</Text>
-                        <Text style={styles.memberEmail}>
+                        <Text style={[styles.memberName, { color: colors.text }]}>{invite.email}</Text>
+                        <Text style={[styles.memberEmail, { color: colors.textMuted }]}>
                           Invited as {invite.role}
                         </Text>
                       </View>
@@ -587,7 +592,7 @@ export default function ProjectDetailScreen() {
           style={styles.settingsMenuOverlay}
           onPress={() => setShowSettingsMenu(false)}
         >
-          <View style={styles.settingsMenuContainer}>
+          <View style={[styles.settingsMenuContainer, { backgroundColor: colors.background }]}>
             <TouchableOpacity
               style={styles.settingsMenuItem}
               onPress={handleArchiveToggle}
@@ -601,7 +606,8 @@ export default function ProjectDetailScreen() {
               <Text
                 style={[
                   styles.settingsMenuText,
-                  project.status === 'archived' && styles.settingsMenuTextHighlight,
+                  { color: colors.text },
+                  project.status === 'archived' && { color: colors.primary },
                 ]}
               >
                 {project.status === 'archived' ? 'Unarchive Project' : 'Archive Project'}
@@ -617,7 +623,6 @@ export default function ProjectDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
   },
   projectHeader: {
     margin: 16,
@@ -638,12 +643,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
     marginRight: 8,
   },
   projectDescription: {
     fontSize: 15,
-    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: 12,
   },
@@ -653,7 +656,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tag: {
-    backgroundColor: colors.backgroundSecondary,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -662,13 +664,11 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 13,
-    color: colors.textSecondary,
   },
   projectStats: {
     flexDirection: 'row',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
     gap: 16,
   },
   stat: {
@@ -677,14 +677,12 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 14,
-    color: colors.textMuted,
     marginLeft: 6,
   },
   collaboratorsSection: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
   },
   collaboratorsHeader: {
     flexDirection: 'row',
@@ -695,7 +693,6 @@ const styles = StyleSheet.create({
   collaboratorsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
   },
   shareButton: {
     flexDirection: 'row',
@@ -705,7 +702,6 @@ const styles = StyleSheet.create({
   shareButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.primary,
   },
   collaboratorRow: {
     flexDirection: 'row',
@@ -719,30 +715,25 @@ const styles = StyleSheet.create({
   collaboratorName: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.text,
   },
   collaboratorRole: {
     fontSize: 12,
-    color: colors.textMuted,
   },
   viewAllButton: {
     marginTop: 4,
   },
   viewAllText: {
     fontSize: 14,
-    color: colors.primary,
     fontWeight: '500',
   },
   pendingSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
   },
   pendingTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textMuted,
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -756,7 +747,6 @@ const styles = StyleSheet.create({
   pendingEmail: {
     flex: 1,
     fontSize: 13,
-    color: colors.textSecondary,
   },
   fab: {
     position: 'absolute',
@@ -765,7 +755,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -776,7 +765,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -784,12 +772,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
   },
   modalContent: {
     flex: 1,
@@ -801,18 +787,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 12,
   },
   inviteForm: {
     marginBottom: 12,
   },
   emailInput: {
-    backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: colors.text,
     marginBottom: 8,
   },
   roleSelector: {
@@ -825,20 +808,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
     alignItems: 'center',
-  },
-  roleOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '15',
   },
   roleText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  roleTextActive: {
-    color: colors.primary,
   },
   inviteButton: {
     marginTop: 4,
@@ -851,7 +825,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
   },
   memberInfo: {
     flex: 1,
@@ -860,11 +833,9 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 15,
     fontWeight: '500',
-    color: colors.text,
   },
   memberEmail: {
     fontSize: 13,
-    color: colors.textMuted,
   },
   removeButton: {
     padding: 8,
@@ -874,7 +845,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.backgroundSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -889,7 +859,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   settingsMenuContainer: {
-    backgroundColor: colors.background,
     borderRadius: 12,
     minWidth: 200,
     paddingVertical: 8,
@@ -908,9 +877,5 @@ const styles = StyleSheet.create({
   },
   settingsMenuText: {
     fontSize: 16,
-    color: colors.text,
-  },
-  settingsMenuTextHighlight: {
-    color: colors.primary,
   },
 });

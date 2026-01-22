@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, categoryColors, moodColors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 import { categories, moods } from '../../constants/categories';
 import { Button } from '../ui/Button';
 import { Avatar } from '../ui/Avatar';
@@ -36,6 +36,7 @@ export function UpdateComposer({
   onSubmit,
   onCancel,
 }: UpdateComposerProps) {
+  const colors = useColors();
   const user = useAuthStore((state) => state.user);
   const [content, setContent] = useState('');
   const [projectId, setProjectId] = useState(selectedProjectId || '');
@@ -64,7 +65,7 @@ export function UpdateComposer({
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -74,14 +75,14 @@ export function UpdateComposer({
           size="medium"
         />
         <View style={styles.headerInfo}>
-          <Text style={styles.userName}>
+          <Text style={[styles.userName, { color: colors.text }]}>
             {user?.displayName || user?.username}
           </Text>
           <TouchableOpacity
             style={styles.projectSelector}
             onPress={() => setShowProjectPicker(!showProjectPicker)}
           >
-            <Text style={styles.projectText}>
+            <Text style={[styles.projectText, { color: colors.textSecondary }]}>
               {selectedProject ? selectedProject.name : 'Select project'}
             </Text>
             <Feather
@@ -106,7 +107,8 @@ export function UpdateComposer({
               key={project._id}
               style={[
                 styles.projectItem,
-                projectId === project._id && styles.projectItemActive,
+                { borderColor: colors.border },
+                projectId === project._id && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
               ]}
               onPress={() => {
                 setProjectId(project._id);
@@ -119,7 +121,8 @@ export function UpdateComposer({
               <Text
                 style={[
                   styles.projectItemText,
-                  projectId === project._id && styles.projectItemTextActive,
+                  { color: colors.textSecondary },
+                  projectId === project._id && { color: colors.primary, fontWeight: '500' },
                 ]}
               >
                 {project.name}
@@ -131,7 +134,7 @@ export function UpdateComposer({
 
       {/* Content Input */}
       <TextInput
-        style={styles.input}
+        style={[styles.input, { color: colors.text }]}
         placeholder="What's the latest on your project?"
         placeholderTextColor={colors.textMuted}
         multiline
@@ -141,18 +144,19 @@ export function UpdateComposer({
       />
 
       {/* Character count */}
-      <Text style={styles.charCount}>
+      <Text style={[styles.charCount, { color: colors.textMuted }]}>
         {content.length}/{config.maxContentLength}
       </Text>
 
       {/* Category Picker */}
-      <Text style={styles.sectionLabel}>Category</Text>
+      <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Category</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionList}>
         {categories.map((cat) => (
           <TouchableOpacity
             key={cat.value}
             style={[
               styles.optionItem,
+              { borderColor: colors.border },
               category === cat.value && { backgroundColor: cat.color + '20', borderColor: cat.color },
             ]}
             onPress={() => setCategory(cat.value)}
@@ -165,6 +169,7 @@ export function UpdateComposer({
             <Text
               style={[
                 styles.optionText,
+                { color: colors.textSecondary },
                 category === cat.value && { color: cat.color },
               ]}
             >
@@ -175,13 +180,14 @@ export function UpdateComposer({
       </ScrollView>
 
       {/* Mood Picker */}
-      <Text style={styles.sectionLabel}>Mood</Text>
+      <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Mood</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionList}>
         {moods.map((m) => (
           <TouchableOpacity
             key={m.value}
             style={[
               styles.optionItem,
+              { borderColor: colors.border },
               mood === m.value && { backgroundColor: m.color + '20', borderColor: m.color },
             ]}
             onPress={() => setMood(m.value)}
@@ -194,6 +200,7 @@ export function UpdateComposer({
             <Text
               style={[
                 styles.optionText,
+                { color: colors.textSecondary },
                 mood === m.value && { color: m.color },
               ]}
             >
@@ -204,7 +211,7 @@ export function UpdateComposer({
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { borderTopColor: colors.borderLight }]}>
         <Button
           title="Post Update"
           onPress={handleSubmit}
@@ -219,12 +226,10 @@ export function UpdateComposer({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     margin: 16,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -238,7 +243,6 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.text,
   },
   projectSelector: {
     flexDirection: 'row',
@@ -247,7 +251,6 @@ const styles = StyleSheet.create({
   },
   projectText: {
     fontSize: 13,
-    color: colors.textSecondary,
     marginRight: 4,
   },
   closeButton: {
@@ -263,12 +266,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
     marginRight: 8,
-  },
-  projectItemActive: {
-    backgroundColor: colors.primaryLight + '20',
-    borderColor: colors.primary,
   },
   projectDot: {
     width: 8,
@@ -278,28 +276,20 @@ const styles = StyleSheet.create({
   },
   projectItemText: {
     fontSize: 13,
-    color: colors.textSecondary,
-  },
-  projectItemTextActive: {
-    color: colors.primary,
-    fontWeight: '500',
   },
   input: {
     fontSize: 16,
-    color: colors.text,
     minHeight: 100,
     textAlignVertical: 'top',
   },
   charCount: {
     fontSize: 12,
-    color: colors.textMuted,
     textAlign: 'right',
     marginBottom: 12,
   },
   sectionLabel: {
     fontSize: 13,
     fontWeight: '500',
-    color: colors.textSecondary,
     marginBottom: 8,
   },
   optionList: {
@@ -312,17 +302,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
     marginRight: 8,
   },
   optionText: {
     fontSize: 13,
     marginLeft: 6,
-    color: colors.textSecondary,
   },
   footer: {
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
     paddingTop: 16,
   },
   submitButton: {

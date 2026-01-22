@@ -8,15 +8,18 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../../src/constants/colors';
 import { Card } from '../../../src/components/ui/Card';
 import { Input } from '../../../src/components/ui/Input';
 import { Button } from '../../../src/components/ui/Button';
 import { useAuthStore } from '../../../src/store/authStore';
+import { useUIStore } from '../../../src/store/uiStore';
+import { useColors } from '../../../src/hooks/useColors';
 import { usersApi } from '../../../src/api/users';
 
 export default function SettingsScreen() {
   const { user, setUser } = useAuthStore();
+  const { isDarkMode, toggleDarkMode } = useUIStore();
+  const colors = useColors();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -38,10 +41,10 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['left', 'right']}>
       <ScrollView contentContainerStyle={styles.content}>
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Profile</Text>
 
           <Input
             label="Display Name"
@@ -68,12 +71,12 @@ export default function SettingsScreen() {
         </Card>
 
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Notifications</Text>
 
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, { borderTopColor: colors.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Email Notifications</Text>
-              <Text style={styles.settingDescription}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>Email Notifications</Text>
+              <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
                 Receive updates via email
               </Text>
             </View>
@@ -84,10 +87,10 @@ export default function SettingsScreen() {
             />
           </View>
 
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, { borderTopColor: colors.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Push Notifications</Text>
-              <Text style={styles.settingDescription}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>Push Notifications</Text>
+              <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
                 Receive push notifications
               </Text>
             </View>
@@ -100,18 +103,18 @@ export default function SettingsScreen() {
         </Card>
 
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Appearance</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance</Text>
 
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, { borderTopColor: colors.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Dark Mode</Text>
-              <Text style={styles.settingDescription}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>Dark Mode</Text>
+              <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
                 Use dark theme
               </Text>
             </View>
             <Switch
-              value={false}
-              onValueChange={() => {}}
+              value={isDarkMode}
+              onValueChange={toggleDarkMode}
               trackColor={{ false: colors.border, true: colors.primary }}
             />
           </View>
@@ -145,7 +148,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
   },
   content: {
     padding: 16,
@@ -156,7 +158,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
     marginBottom: 16,
     textTransform: 'uppercase',
   },
@@ -166,7 +167,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
   },
   settingInfo: {
     flex: 1,
@@ -174,12 +174,10 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    color: colors.text,
     marginBottom: 2,
   },
   settingDescription: {
     fontSize: 13,
-    color: colors.textMuted,
   },
   saveButton: {
     marginTop: 8,

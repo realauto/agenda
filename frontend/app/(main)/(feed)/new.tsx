@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Alert, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../../src/constants/colors';
+import { useColors } from '../../../src/hooks/useColors';
 import { UpdateComposer } from '../../../src/components/feed/UpdateComposer';
 import { Loading } from '../../../src/components/ui/Loading';
 import { useFeedStore } from '../../../src/store/feedStore';
@@ -10,6 +10,7 @@ import { projectsApi } from '../../../src/api/projects';
 import type { Project, UpdateCategory, UpdateMood } from '../../../src/types';
 
 export default function NewUpdateScreen() {
+  const colors = useColors();
   const { editId, projectId: preselectedProjectId } = useLocalSearchParams<{
     editId?: string;
     projectId?: string;
@@ -61,7 +62,7 @@ export default function NewUpdateScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]}>
         <Loading message="Loading projects..." />
       </SafeAreaView>
     );
@@ -69,7 +70,7 @@ export default function NewUpdateScreen() {
 
   if (projects.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]}>
         <View style={styles.emptyContainer}>
           <Loading message="No projects available. Create a project first." />
         </View>
@@ -78,7 +79,7 @@ export default function NewUpdateScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['bottom']}>
       <ScrollView style={styles.scrollView} keyboardShouldPersistTaps="handled">
         <UpdateComposer
           projects={projects}
@@ -94,7 +95,6 @@ export default function NewUpdateScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
   },
   scrollView: {
     flex: 1,

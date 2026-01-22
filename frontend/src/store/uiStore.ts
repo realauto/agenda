@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getDarkMode, setDarkMode as persistDarkMode } from '../lib/storage';
 
 interface Toast {
   id: string;
@@ -15,6 +16,7 @@ interface UIState {
   setDarkMode: (isDark: boolean) => void;
   showToast: (message: string, type?: Toast['type']) => void;
   dismissToast: (id: string) => void;
+  initializeDarkMode: () => Promise<void>;
 }
 
 let toastId = 0;
@@ -23,9 +25,17 @@ export const useUIStore = create<UIState>((set) => ({
   isDarkMode: false,
   toasts: [],
 
-  toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
+  toggleDarkMode: () =>
+    set((state) => {
+      const newValue = !state.isDarkMode;
+      persistDarkMode(newValue);
+      return { isDarkMode: newValue };
+    }),
 
-  setDarkMode: (isDark: boolean) => set({ isDarkMode: isDark }),
+  setDarkMode: (isDark: boolean) => {
+    persistDarkMode(isDark);
+    set({ isDarkMode: isDark });
+  },
 
   showToast: (message: string, type: Toast['type'] = 'info') => {
     const id = `toast-${++toastId}`;
@@ -45,4 +55,14 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     })),
+
+  initializeDarkMode: async () => {
+    const isDark = await getDarkMode();
+    set({ isDarkMode: isDark });
+  },
 }));
+
+// Initialize dark mode from storage on app load
+getDarkMode().then((isDark) => {
+  useUIStore.getState().setDarkMode(isDark);
+});

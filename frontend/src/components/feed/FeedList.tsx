@@ -3,11 +3,10 @@ import {
   FlatList,
   RefreshControl,
   View,
-  Text,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 import { UpdateCard } from './UpdateCard';
 import { EmptyState } from '../ui/EmptyState';
 import type { Update } from '../../types';
@@ -53,6 +52,8 @@ export function FeedList({
   onEmptyAction,
   ListHeaderComponent,
 }: FeedListProps) {
+  const colors = useColors();
+
   const renderItem = ({ item }: { item: Update }) => (
     <UpdateCard
       update={item}

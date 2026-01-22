@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, categoryColors, moodColors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
+import { categoryColors, moodColors } from '../../constants/colors';
 import { getCategoryByValue, getMoodByValue } from '../../constants/categories';
 import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
@@ -21,17 +22,6 @@ interface UpdateCardProps {
   onDeleteComment?: (commentId: string) => void;
 }
 
-// Reaction icons using Feather icon names
-const REACTION_ICONS: Record<string, { icon: keyof typeof Feather.glyphMap; color: string }> = {
-  like: { icon: 'thumbs-up', color: colors.primary },
-  love: { icon: 'heart', color: '#EF4444' },
-  celebrate: { icon: 'award', color: '#F59E0B' },
-  rocket: { icon: 'zap', color: '#8B5CF6' },
-  eyes: { icon: 'eye', color: colors.textSecondary },
-};
-
-const QUICK_REACTIONS = ['like', 'love', 'celebrate'];
-
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
   const now = new Date();
@@ -48,6 +38,8 @@ function formatRelativeTime(dateString: string): string {
   return date.toLocaleDateString();
 }
 
+const QUICK_REACTIONS = ['like', 'love', 'celebrate'];
+
 export function UpdateCard({
   update,
   onReact,
@@ -58,10 +50,20 @@ export function UpdateCard({
   onEditComment,
   onDeleteComment,
 }: UpdateCardProps) {
+  const colors = useColors();
   const [showActions, setShowActions] = useState(false);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const user = useAuthStore((state) => state.user);
   const isAuthor = user?._id === update.authorId;
+
+  // Reaction icons using Feather icon names
+  const REACTION_ICONS: Record<string, { icon: keyof typeof Feather.glyphMap; color: string }> = {
+    like: { icon: 'thumbs-up', color: colors.primary },
+    love: { icon: 'heart', color: '#EF4444' },
+    celebrate: { icon: 'award', color: '#F59E0B' },
+    rocket: { icon: 'zap', color: '#8B5CF6' },
+    eyes: { icon: 'eye', color: colors.textSecondary },
+  };
 
   const category = getCategoryByValue(update.category);
   const mood = getMoodByValue(update.mood);
@@ -89,12 +91,12 @@ export function UpdateCard({
           size="medium"
         />
         <View style={styles.headerInfo}>
-          <Text style={styles.authorName}>
+          <Text style={[styles.authorName, { color: colors.text }]}>
             {update.author?.displayName || update.author?.username || 'Unknown'}
           </Text>
           <View style={styles.meta}>
-            <Text style={styles.time}>{formatRelativeTime(update.createdAt)}</Text>
-            {update.isEdited && <Text style={styles.edited}> · edited</Text>}
+            <Text style={[styles.time, { color: colors.textSecondary }]}>{formatRelativeTime(update.createdAt)}</Text>
+            {update.isEdited && <Text style={[styles.edited, { color: colors.textMuted }]}> · edited</Text>}
           </View>
         </View>
         <View style={styles.badges}>
@@ -118,10 +120,10 @@ export function UpdateCard({
 
       {/* Action Menu */}
       {showActions && isAuthor && (
-        <View style={styles.actionMenu}>
+        <View style={[styles.actionMenu, { backgroundColor: colors.backgroundSecondary }]}>
           <TouchableOpacity style={styles.actionItem} onPress={onEdit}>
             <Feather name="edit-2" size={16} color={colors.text} />
-            <Text style={styles.actionText}>Edit</Text>
+            <Text style={[styles.actionText, { color: colors.text }]}>Edit</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionItem} onPress={onDelete}>
             <Feather name="trash-2" size={16} color={colors.error} />
@@ -141,12 +143,12 @@ export function UpdateCard({
       )}
 
       {/* Content */}
-      <Text style={styles.content}>{update.content}</Text>
+      <Text style={[styles.content, { color: colors.text }]}>{update.content}</Text>
 
       {/* Attachments would go here */}
 
       {/* Reactions */}
-      <View style={styles.reactionsSection}>
+      <View style={[styles.reactionsSection, { borderTopColor: colors.borderLight }]}>
         {Object.entries(reactionGroups).map(([reactionKey, userIds]) => {
           const reactionConfig = REACTION_ICONS[reactionKey];
           if (!reactionConfig) return null;
@@ -156,7 +158,8 @@ export function UpdateCard({
               key={reactionKey}
               style={[
                 styles.reactionBadge,
-                isActive && styles.reactionBadgeActive,
+                { backgroundColor: colors.backgroundSecondary },
+                isActive && { backgroundColor: colors.primaryLight + '20', borderWidth: 1, borderColor: colors.primary },
               ]}
               onPress={() => handleReaction(reactionKey)}
             >
@@ -165,7 +168,7 @@ export function UpdateCard({
                 size={14}
                 color={isActive ? reactionConfig.color : colors.textSecondary}
               />
-              <Text style={[styles.reactionCount, isActive && { color: reactionConfig.color }]}>
+              <Text style={[styles.reactionCount, { color: colors.textSecondary }, isActive && { color: reactionConfig.color }]}>
                 {userIds.length}
               </Text>
             </TouchableOpacity>
@@ -223,7 +226,6 @@ const styles = StyleSheet.create({
   authorName: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.text,
   },
   meta: {
     flexDirection: 'row',
@@ -231,11 +233,9 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 13,
-    color: colors.textSecondary,
   },
   edited: {
     fontSize: 13,
-    color: colors.textMuted,
   },
   badges: {
     marginRight: 8,
@@ -244,7 +244,6 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   actionMenu: {
-    backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     padding: 8,
     marginBottom: 12,
@@ -258,7 +257,6 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 14,
     marginLeft: 8,
-    color: colors.text,
   },
   moodIndicator: {
     flexDirection: 'row',
@@ -282,7 +280,6 @@ const styles = StyleSheet.create({
   content: {
     fontSize: 15,
     lineHeight: 22,
-    color: colors.text,
   },
   reactionsSection: {
     flexDirection: 'row',
@@ -291,27 +288,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
   },
   reactionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.backgroundSecondary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 16,
     marginRight: 8,
     marginBottom: 4,
   },
-  reactionBadgeActive: {
-    backgroundColor: colors.primaryLight + '20',
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
   reactionCount: {
     fontSize: 12,
     marginLeft: 4,
-    color: colors.textSecondary,
   },
   quickReactions: {
     flexDirection: 'row',

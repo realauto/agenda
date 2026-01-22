@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../../src/constants/colors';
+import { useColors } from '../../../src/hooks/useColors';
 import { Input } from '../../../src/components/ui/Input';
 import { Button } from '../../../src/components/ui/Button';
 import { projectsApi } from '../../../src/api/projects';
@@ -29,6 +29,7 @@ const VISIBILITY_OPTIONS: { value: ProjectVisibility; label: string; description
 ];
 
 export default function NewProjectScreen() {
+  const colors = useColors();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState(PROJECT_COLORS[0]);
@@ -77,7 +78,7 @@ export default function NewProjectScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -105,13 +106,14 @@ export default function NewProjectScreen() {
 
           {/* Visibility Selection */}
           <View style={styles.section}>
-            <Text style={styles.label}>Who can access</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Who can access</Text>
             {VISIBILITY_OPTIONS.map((option) => (
               <TouchableOpacity
                 key={option.value}
                 style={[
                   styles.visibilityOption,
-                  visibility === option.value && styles.visibilityOptionActive,
+                  { borderColor: colors.border, backgroundColor: colors.surface },
+                  visibility === option.value && { borderColor: colors.primary, backgroundColor: colors.primary + '10' },
                 ]}
                 onPress={() => setVisibility(option.value)}
               >
@@ -119,15 +121,16 @@ export default function NewProjectScreen() {
                   <Text
                     style={[
                       styles.visibilityLabel,
-                      visibility === option.value && styles.visibilityLabelActive,
+                      { color: colors.text },
+                      visibility === option.value && { color: colors.primary },
                     ]}
                   >
                     {option.label}
                   </Text>
-                  <Text style={styles.visibilityDescription}>{option.description}</Text>
+                  <Text style={[styles.visibilityDescription, { color: colors.textSecondary }]}>{option.description}</Text>
                 </View>
                 {visibility === option.value && (
-                  <View style={styles.checkmark}>
+                  <View style={[styles.checkmark, { backgroundColor: colors.primary }]}>
                     <Text style={styles.checkmarkText}>✓</Text>
                   </View>
                 )}
@@ -137,7 +140,7 @@ export default function NewProjectScreen() {
 
           {/* Color Selection */}
           <View style={styles.section}>
-            <Text style={styles.label}>Color</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Color</Text>
             <View style={styles.colorList}>
               {PROJECT_COLORS.map((c) => (
                 <TouchableOpacity
@@ -145,7 +148,7 @@ export default function NewProjectScreen() {
                   style={[
                     styles.colorOption,
                     { backgroundColor: c },
-                    color === c && styles.colorOptionActive,
+                    color === c && { borderWidth: 3, borderColor: colors.text },
                   ]}
                   onPress={() => setColor(c)}
                 />
@@ -183,7 +186,6 @@ export default function NewProjectScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -197,7 +199,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.text,
     marginBottom: 8,
   },
   visibilityOption: {
@@ -206,12 +207,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
     marginBottom: 8,
-  },
-  visibilityOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '10',
   },
   visibilityContent: {
     flex: 1,
@@ -219,21 +215,15 @@ const styles = StyleSheet.create({
   visibilityLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: colors.text,
-  },
-  visibilityLabelActive: {
-    color: colors.primary,
   },
   visibilityDescription: {
     fontSize: 13,
-    color: colors.textSecondary,
     marginTop: 2,
   },
   checkmark: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -252,10 +242,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 12,
     marginBottom: 8,
-  },
-  colorOptionActive: {
-    borderWidth: 3,
-    borderColor: colors.text,
   },
   actions: {
     flexDirection: 'row',

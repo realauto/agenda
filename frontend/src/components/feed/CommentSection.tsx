@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 import { CommentItem } from './CommentItem';
 import { CommentInput } from './CommentInput';
 import type { Comment } from '../../types';
@@ -23,10 +23,11 @@ export function CommentSection({
   onEditComment,
   onDeleteComment,
 }: CommentSectionProps) {
+  const colors = useColors();
   const commentCount = comments.length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { borderTopColor: colors.borderLight }]}>
       {/* Toggle button */}
       <TouchableOpacity style={styles.toggleButton} onPress={onToggleExpand}>
         <Feather
@@ -34,7 +35,7 @@ export function CommentSection({
           size={16}
           color={colors.textSecondary}
         />
-        <Text style={styles.toggleText}>
+        <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
           {commentCount === 0
             ? 'Add a comment'
             : `${commentCount} comment${commentCount === 1 ? '' : 's'}`}
@@ -75,7 +76,6 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
     paddingTop: 12,
   },
   toggleButton: {
@@ -85,7 +85,6 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontSize: 13,
-    color: colors.textSecondary,
     marginLeft: 6,
     marginRight: 4,
   },

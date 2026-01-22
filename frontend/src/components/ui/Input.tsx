@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -30,18 +30,22 @@ export function Input({
   secureTextEntry,
   ...props
 }: InputProps) {
+  const colors = useColors();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const isPassword = secureTextEntry !== undefined;
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputContainer, error && styles.inputError]}>
+      {label && <Text style={[styles.label, { color: colors.text }]}>{label}</Text>}
+      <View style={[
+        styles.inputContainer,
+        { borderColor: error ? colors.error : colors.border, backgroundColor: colors.background },
+      ]}>
         {leftIcon && (
           <Feather name={leftIcon} size={20} color={colors.textMuted} style={styles.leftIcon} />
         )}
         <TextInput
-          style={[styles.input, leftIcon && styles.inputWithLeftIcon]}
+          style={[styles.input, { color: colors.text }, leftIcon && styles.inputWithLeftIcon]}
           placeholderTextColor={colors.textMuted}
           secureTextEntry={isPassword && !isPasswordVisible}
           {...props}
@@ -65,7 +69,7 @@ export function Input({
           )
         )}
       </View>
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 }
@@ -77,26 +81,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.text,
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 8,
-    backgroundColor: colors.background,
-  },
-  inputError: {
-    borderColor: colors.error,
   },
   input: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: colors.text,
   },
   inputWithLeftIcon: {
     paddingLeft: 8,
@@ -109,7 +106,6 @@ const styles = StyleSheet.create({
   },
   error: {
     fontSize: 12,
-    color: colors.error,
     marginTop: 4,
   },
 });

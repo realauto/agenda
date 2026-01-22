@@ -11,7 +11,7 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../../src/constants/colors';
+import { useColors } from '../../../src/hooks/useColors';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { Loading } from '../../../src/components/ui/Loading';
 import { projectsApi } from '../../../src/api/projects';
@@ -41,17 +41,6 @@ function formatRelativeDate(dateString?: string): string {
   return date.toLocaleDateString();
 }
 
-// Helper function to get status color
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'active': return colors.success;
-    case 'paused': return colors.warning;
-    case 'completed': return colors.primary;
-    case 'archived': return colors.textMuted;
-    default: return colors.textSecondary;
-  }
-}
-
 // Helper function to truncate text
 function truncateText(text: string, maxLength: number): string {
   if (!text || text.length <= maxLength) return text || '';
@@ -59,11 +48,23 @@ function truncateText(text: string, maxLength: number): string {
 }
 
 export default function ProjectsScreen() {
+  const colors = useColors();
   const [projects, setProjects] = useState<Project[]>([]);
   const [pendingInvites, setPendingInvites] = useState<ProjectInvite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
+
+  // Helper function to get status color
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'active': return colors.success;
+      case 'paused': return colors.warning;
+      case 'completed': return colors.primary;
+      case 'archived': return colors.textMuted;
+      default: return colors.textSecondary;
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -125,27 +126,27 @@ export default function ProjectsScreen() {
   };
 
   const renderInvite = ({ item }: { item: ProjectInvite }) => (
-    <View style={styles.inviteCard}>
+    <View style={[styles.inviteCard, { backgroundColor: colors.background, borderLeftColor: colors.primary }]}>
       <View style={styles.inviteContent}>
         <Feather name="mail" size={20} color={colors.primary} />
         <View style={styles.inviteText}>
-          <Text style={styles.inviteTitle}>
+          <Text style={[styles.inviteTitle, { color: colors.text }]}>
             Invited to {item.project?.name || 'a project'}
           </Text>
-          <Text style={styles.inviteSubtitle}>
+          <Text style={[styles.inviteSubtitle, { color: colors.textSecondary }]}>
             as {item.role} {item.invitedByUser ? `by ${item.invitedByUser.displayName || item.invitedByUser.username}` : ''}
           </Text>
         </View>
       </View>
       <View style={styles.inviteActions}>
         <TouchableOpacity
-          style={styles.declineButton}
+          style={[styles.declineButton, { backgroundColor: colors.backgroundSecondary }]}
           onPress={() => handleDeclineInvite(item.token)}
         >
-          <Text style={styles.declineText}>Decline</Text>
+          <Text style={[styles.declineText, { color: colors.textSecondary }]}>Decline</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.acceptButton}
+          style={[styles.acceptButton, { backgroundColor: colors.primary }]}
           onPress={() => handleAcceptInvite(item.token)}
         >
           <Text style={styles.acceptText}>Accept</Text>
@@ -154,11 +155,33 @@ export default function ProjectsScreen() {
     </View>
   );
 
+  const FilterButton = ({
+    label,
+    active,
+    onPress,
+  }: {
+    label: string;
+    active: boolean;
+    onPress: () => void;
+  }) => (
+    <Pressable
+      style={[
+        styles.filterButton,
+        { backgroundColor: active ? colors.primary : colors.background },
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[styles.filterText, { color: active ? '#fff' : colors.textSecondary }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       {pendingInvites.length > 0 && (
         <View style={styles.invitesSection}>
-          <Text style={styles.sectionTitle}>Pending Invites</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Pending Invites</Text>
           {pendingInvites.map((invite) => (
             <View key={invite._id}>
               {renderInvite({ item: invite })}
@@ -194,33 +217,33 @@ export default function ProjectsScreen() {
 
   if (isLoading && projects.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['left', 'right']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['left', 'right']}>
         <Loading message="Loading projects..." />
       </SafeAreaView>
     );
   }
 
   const renderTable = () => (
-    <View style={styles.tableContainer}>
+    <View style={[styles.tableContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
       {/* Table Header */}
-      <View style={styles.tableHeader}>
+      <View style={[styles.tableHeader, { backgroundColor: colors.backgroundSecondary, borderBottomColor: colors.border }]}>
         <View style={[styles.tableCell, styles.colorCell]}>
-          <Text style={styles.headerText}></Text>
+          <Text style={[styles.headerText, { color: colors.textSecondary }]}></Text>
         </View>
         <View style={[styles.tableCell, styles.nameCell]}>
-          <Text style={styles.headerText}>Name</Text>
+          <Text style={[styles.headerText, { color: colors.textSecondary }]}>Name</Text>
         </View>
         <View style={[styles.tableCell, styles.descriptionCell]}>
-          <Text style={styles.headerText}>Description</Text>
+          <Text style={[styles.headerText, { color: colors.textSecondary }]}>Description</Text>
         </View>
         <View style={[styles.tableCell, styles.statusCell]}>
-          <Text style={styles.headerText}>Status</Text>
+          <Text style={[styles.headerText, { color: colors.textSecondary }]}>Status</Text>
         </View>
         <View style={[styles.tableCell, styles.updatesCell]}>
-          <Text style={styles.headerText}>Updates</Text>
+          <Text style={[styles.headerText, { color: colors.textSecondary }]}>Updates</Text>
         </View>
         <View style={[styles.tableCell, styles.lastUpdatedCell]}>
-          <Text style={styles.headerText}>Last Updated</Text>
+          <Text style={[styles.headerText, { color: colors.textSecondary }]}>Last Updated</Text>
         </View>
       </View>
 
@@ -230,8 +253,9 @@ export default function ProjectsScreen() {
           key={project._id}
           style={({ pressed }) => [
             styles.tableRow,
-            index % 2 === 1 && styles.tableRowAlt,
-            pressed && styles.tableRowHover,
+            { backgroundColor: colors.background, borderBottomColor: colors.border },
+            index % 2 === 1 && { backgroundColor: colors.backgroundSecondary },
+            pressed && { backgroundColor: colors.borderLight },
           ]}
           onPress={() => router.push(`/(main)/(projects)/${project._id}`)}
         >
@@ -244,12 +268,12 @@ export default function ProjectsScreen() {
             />
           </View>
           <View style={[styles.tableCell, styles.nameCell]}>
-            <Text style={styles.projectName} numberOfLines={1}>
+            <Text style={[styles.projectName, { color: colors.text }]} numberOfLines={1}>
               {project.name}
             </Text>
           </View>
           <View style={[styles.tableCell, styles.descriptionCell]}>
-            <Text style={styles.cellText} numberOfLines={1}>
+            <Text style={[styles.cellText, { color: colors.textSecondary }]} numberOfLines={1}>
               {truncateText(project.description || '', 40)}
             </Text>
           </View>
@@ -264,10 +288,10 @@ export default function ProjectsScreen() {
             </Text>
           </View>
           <View style={[styles.tableCell, styles.updatesCell]}>
-            <Text style={styles.cellText}>{project.stats?.totalUpdates || 0}</Text>
+            <Text style={[styles.cellText, { color: colors.textSecondary }]}>{project.stats?.totalUpdates || 0}</Text>
           </View>
           <View style={[styles.tableCell, styles.lastUpdatedCell]}>
-            <Text style={styles.cellText}>
+            <Text style={[styles.cellText, { color: colors.textSecondary }]}>
               {formatRelativeDate(project.updatedAt)}
             </Text>
           </View>
@@ -277,7 +301,7 @@ export default function ProjectsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['left', 'right']}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={projects.length === 0 ? styles.emptyContainer : styles.list}
@@ -314,7 +338,7 @@ export default function ProjectsScreen() {
       </ScrollView>
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={() => router.push('/(main)/(projects)/new')}
         activeOpacity={0.8}
       >
@@ -324,31 +348,9 @@ export default function ProjectsScreen() {
   );
 }
 
-function FilterButton({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={[styles.filterButton, active && styles.filterButtonActive]}
-      onPress={onPress}
-    >
-      <Text style={[styles.filterText, active && styles.filterTextActive]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
   },
   scrollView: {
     flex: 1,
@@ -369,18 +371,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   inviteCard: {
-    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
     borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
   },
   inviteContent: {
     flexDirection: 'row',
@@ -394,11 +393,9 @@ const styles = StyleSheet.create({
   inviteTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
   },
   inviteSubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
     marginTop: 2,
   },
   inviteActions: {
@@ -410,18 +407,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: colors.backgroundSecondary,
   },
   declineText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textSecondary,
   },
   acceptButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: colors.primary,
   },
   acceptText: {
     fontSize: 14,
@@ -437,18 +431,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: colors.background,
-  },
-  filterButtonActive: {
-    backgroundColor: colors.primary,
   },
   filterText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  filterTextActive: {
-    color: '#fff',
   },
   fab: {
     position: 'absolute',
@@ -457,7 +443,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -468,30 +453,18 @@ const styles = StyleSheet.create({
   },
   // Table styles
   tableContainer: {
-    backgroundColor: colors.background,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
     overflow: 'hidden',
     marginHorizontal: 16,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   tableRow: {
     flexDirection: 'row',
-    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tableRowAlt: {
-    backgroundColor: '#F9FAFB',
-  },
-  tableRowHover: {
-    backgroundColor: '#E5E7EB',
   },
   tableCell: {
     paddingHorizontal: 12,
@@ -523,18 +496,15 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   cellText: {
     fontSize: 14,
-    color: colors.textSecondary,
   },
   projectName: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
   },
   statusText: {
     fontSize: 13,

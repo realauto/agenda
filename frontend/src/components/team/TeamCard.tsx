@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 import { Card } from '../ui/Card';
 import { Avatar } from '../ui/Avatar';
 import type { Team } from '../../types';
@@ -12,21 +12,23 @@ interface TeamCardProps {
 }
 
 export function TeamCard({ team, onPress }: TeamCardProps) {
+  const colors = useColors();
+
   return (
     <Card style={styles.card} onPress={onPress}>
       <View style={styles.content}>
         <Avatar source={team.avatar} name={team.name} size="large" />
         <View style={styles.info}>
-          <Text style={styles.name}>{team.name}</Text>
+          <Text style={[styles.name, { color: colors.text }]}>{team.name}</Text>
           {team.description && (
-            <Text style={styles.description} numberOfLines={2}>
+            <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={2}>
               {team.description}
             </Text>
           )}
           <View style={styles.meta}>
             <View style={styles.metaItem}>
               <Feather name="users" size={14} color={colors.textMuted} />
-              <Text style={styles.metaText}>{team.members.length} members</Text>
+              <Text style={[styles.metaText, { color: colors.textMuted }]}>{team.members.length} members</Text>
             </View>
           </View>
         </View>
@@ -52,12 +54,10 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 4,
   },
   description: {
     fontSize: 14,
-    color: colors.textSecondary,
     marginBottom: 8,
   },
   meta: {
@@ -70,7 +70,6 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: colors.textMuted,
     marginLeft: 4,
   },
 });

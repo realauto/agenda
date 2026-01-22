@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 import { categories } from '../../constants/categories';
 import type { UpdateCategory } from '../../types';
 
@@ -11,6 +11,8 @@ interface CategoryFilterProps {
 }
 
 export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
+  const colors = useColors();
+
   return (
     <ScrollView
       horizontal
@@ -18,10 +20,14 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
       contentContainerStyle={styles.container}
     >
       <TouchableOpacity
-        style={[styles.chip, !selected && styles.chipActive]}
+        style={[
+          styles.chip,
+          { borderColor: colors.border, backgroundColor: colors.surface },
+          !selected && { backgroundColor: colors.primary, borderColor: colors.primary },
+        ]}
         onPress={() => onChange(undefined)}
       >
-        <Text style={[styles.chipText, !selected && styles.chipTextActive]}>All</Text>
+        <Text style={[styles.chipText, { color: colors.textSecondary }, !selected && { color: '#fff' }]}>All</Text>
       </TouchableOpacity>
 
       {categories.map((cat) => (
@@ -29,6 +35,7 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
           key={cat.value}
           style={[
             styles.chip,
+            { borderColor: colors.border, backgroundColor: colors.surface },
             selected === cat.value && { backgroundColor: cat.color + '20', borderColor: cat.color },
           ]}
           onPress={() => onChange(selected === cat.value ? undefined : cat.value)}
@@ -42,6 +49,7 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
           <Text
             style={[
               styles.chipText,
+              { color: colors.textSecondary },
               selected === cat.value && { color: cat.color },
             ]}
           >
@@ -65,13 +73,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
     marginRight: 8,
-    backgroundColor: colors.surface,
-  },
-  chipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
   chipIcon: {
     marginRight: 6,
@@ -79,9 +81,5 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  chipTextActive: {
-    color: '#fff',
   },
 });

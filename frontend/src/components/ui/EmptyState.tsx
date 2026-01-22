@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 import { Button } from './Button';
 
 interface EmptyStateProps {
@@ -21,13 +21,15 @@ export function EmptyState({
   onAction,
   style,
 }: EmptyStateProps) {
+  const colors = useColors();
+
   return (
     <View style={[styles.container, style]}>
-      <View style={styles.iconContainer}>
+      <View style={[styles.iconContainer, { backgroundColor: colors.backgroundSecondary }]}>
         <Feather name={icon} size={48} color={colors.textMuted} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {message && <Text style={styles.message}>{message}</Text>}
+      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      {message && <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>}
       {actionLabel && onAction && (
         <Button
           title={actionLabel}
@@ -52,7 +54,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.backgroundSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -60,13 +61,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   message: {
     fontSize: 14,
-    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 
 interface CardProps {
   children: React.ReactNode;
@@ -10,7 +10,17 @@ interface CardProps {
 }
 
 export function Card({ children, style, onPress, padding = 'medium' }: CardProps) {
-  const cardStyle = [styles.card, styles[`${padding}Padding`], style];
+  const colors = useColors();
+
+  const cardStyle = [
+    styles.card,
+    styles[`${padding}Padding`],
+    {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+    },
+    style,
+  ];
 
   if (onPress) {
     return (
@@ -25,10 +35,8 @@ export function Card({ children, style, onPress, padding = 'medium' }: CardProps
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   nonePadding: {
     padding: 0,

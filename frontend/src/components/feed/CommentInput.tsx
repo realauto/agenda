@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 import { Avatar } from '../ui/Avatar';
 import { useAuthStore } from '../../store/authStore';
 
@@ -11,6 +11,7 @@ interface CommentInputProps {
 }
 
 export function CommentInput({ onSubmit, placeholder = 'Write a comment...' }: CommentInputProps) {
+  const colors = useColors();
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const user = useAuthStore((state) => state.user);
@@ -34,9 +35,9 @@ export function CommentInput({ onSubmit, placeholder = 'Write a comment...' }: C
         name={user?.displayName || user?.username}
         size="small"
       />
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { borderColor: colors.border, backgroundColor: colors.backgroundSecondary }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.text }]}
           value={content}
           onChangeText={setContent}
           placeholder={placeholder}
@@ -77,9 +78,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginLeft: 10,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 20,
-    backgroundColor: colors.backgroundSecondary,
     paddingLeft: 12,
     paddingRight: 4,
     paddingVertical: 4,
@@ -87,7 +86,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 14,
-    color: colors.text,
     maxHeight: 100,
     paddingVertical: 6,
   },

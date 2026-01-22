@@ -1,14 +1,17 @@
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../src/constants/colors';
+import { useColors } from '../../src/hooks/useColors';
 
 export default function MainLayout() {
+  const colors = useColors();
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
+          backgroundColor: colors.background,
           borderTopColor: colors.border,
         },
         headerShown: false,

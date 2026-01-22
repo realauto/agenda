@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../../src/constants/colors';
+import { useColors } from '../../../src/hooks/useColors';
 import { Card } from '../../../src/components/ui/Card';
 import { Avatar } from '../../../src/components/ui/Avatar';
 import { Button } from '../../../src/components/ui/Button';
@@ -11,6 +11,7 @@ import { useAuthStore } from '../../../src/store/authStore';
 import { useTeamStore } from '../../../src/store/teamStore';
 
 export default function ProfileScreen() {
+  const colors = useColors();
   const { user, logout } = useAuthStore();
   const { teams } = useTeamStore();
 
@@ -33,7 +34,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['left', 'right']}>
       <ScrollView contentContainerStyle={styles.content}>
         {/* Profile Card */}
         <Card style={styles.profileCard}>
@@ -44,20 +45,20 @@ export default function ProfileScreen() {
               size="xlarge"
             />
             <View style={styles.profileInfo}>
-              <Text style={styles.displayName}>
+              <Text style={[styles.displayName, { color: colors.text }]}>
                 {user.displayName || user.username}
               </Text>
-              <Text style={styles.username}>@{user.username}</Text>
-              <Text style={styles.email}>{user.email}</Text>
+              <Text style={[styles.username, { color: colors.textSecondary }]}>@{user.username}</Text>
+              <Text style={[styles.email, { color: colors.textMuted }]}>{user.email}</Text>
             </View>
           </View>
 
-          {user.bio && <Text style={styles.bio}>{user.bio}</Text>}
+          {user.bio && <Text style={[styles.bio, { color: colors.textSecondary }]}>{user.bio}</Text>}
 
-          <View style={styles.profileStats}>
+          <View style={[styles.profileStats, { borderTopColor: colors.borderLight }]}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{teams.length}</Text>
-              <Text style={styles.statLabel}>Teams</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{teams.length}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Teams</Text>
             </View>
           </View>
         </Card>
@@ -65,34 +66,34 @@ export default function ProfileScreen() {
         {/* Menu Items */}
         <Card style={styles.menuCard}>
           <TouchableOpacity
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: colors.borderLight }]}
             onPress={() => router.push('/(main)/(profile)/settings')}
           >
             <View style={styles.menuItemLeft}>
               <View style={[styles.menuIcon, { backgroundColor: colors.primary + '15' }]}>
                 <Feather name="settings" size={20} color={colors.primary} />
               </View>
-              <Text style={styles.menuItemText}>Settings</Text>
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Settings</Text>
             </View>
             <Feather name="chevron-right" size={20} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.borderLight }]}>
             <View style={styles.menuItemLeft}>
               <View style={[styles.menuIcon, { backgroundColor: colors.secondary + '15' }]}>
                 <Feather name="bell" size={20} color={colors.secondary} />
               </View>
-              <Text style={styles.menuItemText}>Notifications</Text>
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Notifications</Text>
             </View>
             <Feather name="chevron-right" size={20} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.borderLight }]}>
             <View style={styles.menuItemLeft}>
               <View style={[styles.menuIcon, { backgroundColor: colors.success + '15' }]}>
                 <Feather name="help-circle" size={20} color={colors.success} />
               </View>
-              <Text style={styles.menuItemText}>Help & Support</Text>
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Help & Support</Text>
             </View>
             <Feather name="chevron-right" size={20} color={colors.textMuted} />
           </TouchableOpacity>
@@ -105,7 +106,7 @@ export default function ProfileScreen() {
           style={styles.logoutButton}
         />
 
-        <Text style={styles.version}>ProjectLog v1.0.0</Text>
+        <Text style={[styles.version, { color: colors.textMuted }]}>ProjectLog v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -114,7 +115,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
   },
   content: {
     padding: 16,
@@ -134,21 +134,17 @@ const styles = StyleSheet.create({
   displayName: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
     marginBottom: 2,
   },
   username: {
     fontSize: 14,
-    color: colors.textSecondary,
     marginBottom: 4,
   },
   email: {
     fontSize: 13,
-    color: colors.textMuted,
   },
   bio: {
     fontSize: 14,
-    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -156,7 +152,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
   },
   stat: {
     alignItems: 'center',
@@ -165,11 +160,9 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
   },
   statLabel: {
     fontSize: 13,
-    color: colors.textMuted,
   },
   menuCard: {
     marginBottom: 16,
@@ -181,7 +174,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -197,7 +189,6 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    color: colors.text,
   },
   logoutButton: {
     marginBottom: 24,
@@ -205,6 +196,5 @@ const styles = StyleSheet.create({
   version: {
     textAlign: 'center',
     fontSize: 12,
-    color: colors.textMuted,
   },
 });

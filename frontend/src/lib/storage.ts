@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 const ACCESS_TOKEN_KEY = 'projectlog_access_token';
 const REFRESH_TOKEN_KEY = 'projectlog_refresh_token';
+const DARK_MODE_KEY = 'projectlog_dark_mode';
 
 // Web fallback using localStorage
 const webStorage = {
@@ -70,4 +71,21 @@ export async function clearTokens(): Promise<void> {
 export async function setTokens(accessToken: string, refreshToken: string): Promise<void> {
   await setAccessToken(accessToken);
   await setRefreshToken(refreshToken);
+}
+
+export async function getDarkMode(): Promise<boolean> {
+  try {
+    const value = await storage.getItem(DARK_MODE_KEY);
+    return value === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setDarkMode(isDark: boolean): Promise<void> {
+  try {
+    await storage.setItem(DARK_MODE_KEY, String(isDark));
+  } catch (error) {
+    console.error('Failed to store dark mode preference:', error);
+  }
 }

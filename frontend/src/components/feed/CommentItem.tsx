@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/useColors';
 import { Avatar } from '../ui/Avatar';
 import type { Comment } from '../../types';
 import { useAuthStore } from '../../store/authStore';
@@ -29,6 +29,7 @@ function formatRelativeTime(dateString: string): string {
 }
 
 export function CommentItem({ comment, onEdit, onDelete }: CommentItemProps) {
+  const colors = useColors();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
   const [showActions, setShowActions] = useState(false);
@@ -62,11 +63,11 @@ export function CommentItem({ comment, onEdit, onDelete }: CommentItemProps) {
       />
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.authorName}>
+          <Text style={[styles.authorName, { color: colors.text }]}>
             {comment.author?.displayName || comment.author?.username || 'Unknown'}
           </Text>
-          <Text style={styles.time}>{formatRelativeTime(comment.createdAt)}</Text>
-          {comment.isEdited && <Text style={styles.edited}> (edited)</Text>}
+          <Text style={[styles.time, { color: colors.textMuted }]}>{formatRelativeTime(comment.createdAt)}</Text>
+          {comment.isEdited && <Text style={[styles.edited, { color: colors.textMuted }]}> (edited)</Text>}
           {isAuthor && !isEditing && (
             <TouchableOpacity
               style={styles.menuButton}
@@ -78,7 +79,7 @@ export function CommentItem({ comment, onEdit, onDelete }: CommentItemProps) {
         </View>
 
         {showActions && isAuthor && (
-          <View style={styles.actionMenu}>
+          <View style={[styles.actionMenu, { backgroundColor: colors.backgroundSecondary }]}>
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => {
@@ -87,7 +88,7 @@ export function CommentItem({ comment, onEdit, onDelete }: CommentItemProps) {
               }}
             >
               <Feather name="edit-2" size={14} color={colors.text} />
-              <Text style={styles.actionText}>Edit</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionItem} onPress={handleDelete}>
               <Feather name="trash-2" size={14} color={colors.error} />
@@ -99,7 +100,7 @@ export function CommentItem({ comment, onEdit, onDelete }: CommentItemProps) {
         {isEditing ? (
           <View style={styles.editContainer}>
             <TextInput
-              style={styles.editInput}
+              style={[styles.editInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
               value={editContent}
               onChangeText={setEditContent}
               multiline
@@ -107,10 +108,10 @@ export function CommentItem({ comment, onEdit, onDelete }: CommentItemProps) {
             />
             <View style={styles.editActions}>
               <TouchableOpacity style={styles.editButton} onPress={handleCancelEdit}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.editButton, styles.saveButton]}
+                style={[styles.editButton, styles.saveButton, { backgroundColor: colors.primary }]}
                 onPress={handleSaveEdit}
               >
                 <Text style={styles.saveButtonText}>Save</Text>
@@ -118,7 +119,7 @@ export function CommentItem({ comment, onEdit, onDelete }: CommentItemProps) {
             </View>
           </View>
         ) : (
-          <Text style={styles.commentText}>{comment.content}</Text>
+          <Text style={[styles.commentText, { color: colors.text }]}>{comment.content}</Text>
         )}
       </View>
     </View>
@@ -142,16 +143,13 @@ const styles = StyleSheet.create({
   authorName: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
   },
   time: {
     fontSize: 12,
-    color: colors.textMuted,
     marginLeft: 8,
   },
   edited: {
     fontSize: 12,
-    color: colors.textMuted,
   },
   menuButton: {
     marginLeft: 'auto',
@@ -159,7 +157,6 @@ const styles = StyleSheet.create({
   },
   actionMenu: {
     flexDirection: 'row',
-    backgroundColor: colors.backgroundSecondary,
     borderRadius: 6,
     padding: 4,
     marginBottom: 8,
@@ -173,24 +170,19 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 12,
     marginLeft: 4,
-    color: colors.text,
   },
   commentText: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.text,
   },
   editContainer: {
     marginTop: 4,
   },
   editInput: {
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 6,
     padding: 8,
     fontSize: 14,
-    color: colors.text,
-    backgroundColor: colors.background,
     minHeight: 60,
   },
   editActions: {
@@ -206,11 +198,8 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 13,
-    color: colors.textSecondary,
   },
-  saveButton: {
-    backgroundColor: colors.primary,
-  },
+  saveButton: {},
   saveButtonText: {
     fontSize: 13,
     color: '#FFFFFF',

@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React from 'react';
+import { StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../../src/constants/colors';
+import { useColors } from '../../../src/hooks/useColors';
 import { FeedList } from '../../../src/components/feed/FeedList';
 import { CategoryFilter } from '../../../src/components/feed/CategoryFilter';
 import { useFeed } from '../../../src/hooks/useFeed';
 import type { Update } from '../../../src/types';
 
 export default function FeedScreen() {
+  const colors = useColors();
   const {
     updates,
     hasMore,
@@ -59,7 +60,7 @@ export default function FeedScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['left', 'right']}>
       <FeedList
         updates={updates}
         isLoading={isLoading}
@@ -81,7 +82,7 @@ export default function FeedScreen() {
       />
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={() => router.push('/(main)/(feed)/new')}
         activeOpacity={0.8}
       >
@@ -94,7 +95,6 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
   },
   fab: {
     position: 'absolute',
@@ -103,7 +103,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',

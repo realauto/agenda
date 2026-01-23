@@ -85,6 +85,8 @@ export interface Project {
   pinnedUpdateId?: string;
   stats: ProjectStats;
   latestUpdate?: ProjectLatestUpdate;
+  publicShareToken?: string;
+  publicShareEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }

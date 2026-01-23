@@ -39,6 +39,7 @@ export default function ProjectDetailScreen() {
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
   const [isInviting, setIsInviting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isTogglingPublicShare, setIsTogglingPublicShare] = useState(false);
 
   const statusColors: Record<string, string> = {
     active: colors.success,
@@ -145,6 +146,40 @@ export default function ProjectDetailScreen() {
           },
         ]
       );
+    }
+  };
+
+  const handleTogglePublicShare = async () => {
+    if (!project) return;
+    setIsTogglingPublicShare(true);
+    try {
+      if (project.publicShareEnabled) {
+        await projectsApi.disablePublicShare(projectId!);
+        setProject({ ...project, publicShareEnabled: false });
+      } else {
+        const result = await projectsApi.enablePublicShare(projectId!);
+        setProject({
+          ...project,
+          publicShareToken: result.publicShareToken,
+          publicShareEnabled: result.publicShareEnabled,
+        });
+      }
+    } catch (error: any) {
+      showAlert('Error', error.response?.data?.message || 'Failed to update public sharing');
+    } finally {
+      setIsTogglingPublicShare(false);
+    }
+  };
+
+  const copyPublicLink = () => {
+    if (!project?.publicShareToken) return;
+    const url = `${window.location.origin}/share/${project.publicShareToken}`;
+    if (Platform.OS === 'web') {
+      navigator.clipboard.writeText(url);
+      showAlert('Copied', 'Public link copied to clipboard');
+    } else {
+      // For native, we'd use Clipboard API from expo-clipboard
+      showAlert('Public Link', url);
     }
   };
 
@@ -430,6 +465,49 @@ export default function ProjectDetailScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
+            {/* Public Link Section */}
+            <View style={styles.publicLinkSection}>
+              <View style={styles.publicLinkHeader}>
+                <View style={styles.publicLinkTitleRow}>
+                  <Feather name="globe" size={20} color={colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0, marginLeft: 8 }]}>
+                    Public Link
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.publicToggle,
+                    { backgroundColor: project?.publicShareEnabled ? colors.primary : colors.backgroundSecondary },
+                  ]}
+                  onPress={handleTogglePublicShare}
+                  disabled={isTogglingPublicShare}
+                >
+                  <Text style={[
+                    styles.publicToggleText,
+                    { color: project?.publicShareEnabled ? '#fff' : colors.textSecondary },
+                  ]}>
+                    {project?.publicShareEnabled ? 'On' : 'Off'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.publicLinkDescription, { color: colors.textSecondary }]}>
+                Anyone with the link can view this project (read-only)
+              </Text>
+              {project?.publicShareEnabled && project?.publicShareToken && (
+                <TouchableOpacity
+                  style={[styles.copyLinkButton, { backgroundColor: colors.backgroundSecondary }]}
+                  onPress={copyPublicLink}
+                >
+                  <Text style={[styles.copyLinkText, { color: colors.text }]} numberOfLines={1}>
+                    {Platform.OS === 'web' ? `${window.location.origin}/share/${project.publicShareToken}` : `/share/${project.publicShareToken}`}
+                  </Text>
+                  <Feather name="copy" size={18} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
             {/* Invite Form */}
             <View style={styles.inviteSection}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Invite people</Text>
@@ -877,5 +955,46 @@ const styles = StyleSheet.create({
   },
   settingsMenuText: {
     fontSize: 16,
+  },
+  publicLinkSection: {
+    marginBottom: 16,
+  },
+  publicLinkHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  publicLinkTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  publicToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  publicToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  publicLinkDescription: {
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  copyLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  copyLinkText: {
+    flex: 1,
+    fontSize: 13,
+  },
+  divider: {
+    height: 1,
+    marginVertical: 16,
   },
 });

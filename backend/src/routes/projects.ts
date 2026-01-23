@@ -763,6 +763,247 @@ const projectsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       return reply.send({ message: 'Invite revoked' });
     }
   );
+
+  // Enable public share link
+  fastify.post<{ Params: { projectId: string } }>(
+    '/projects/:projectId/public-share',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Projects', 'Sharing'],
+        description: 'Enable public share link for the project',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['projectId'],
+          properties: {
+            projectId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { projectId } = request.params;
+      const userId = request.user!.userId;
+
+      // Only owner or editor can enable public sharing
+      const role = await projectService.getUserRole(projectId, userId);
+      if (!role || role === 'viewer') {
+        return reply.code(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'You do not have permission to manage public sharing',
+        });
+      }
+
+      const project = await projectService.enablePublicShare(projectId);
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
+        });
+      }
+
+      return reply.send({
+        publicShareToken: project.publicShareToken,
+        publicShareEnabled: project.publicShareEnabled,
+      });
+    }
+  );
+
+  // Disable public share link
+  fastify.delete<{ Params: { projectId: string } }>(
+    '/projects/:projectId/public-share',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Projects', 'Sharing'],
+        description: 'Disable public share link for the project',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['projectId'],
+          properties: {
+            projectId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { projectId } = request.params;
+      const userId = request.user!.userId;
+
+      // Only owner or editor can disable public sharing
+      const role = await projectService.getUserRole(projectId, userId);
+      if (!role || role === 'viewer') {
+        return reply.code(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'You do not have permission to manage public sharing',
+        });
+      }
+
+      await projectService.disablePublicShare(projectId);
+
+      return reply.send({ message: 'Public sharing disabled' });
+    }
+  );
+
+  // Regenerate public share token
+  fastify.post<{ Params: { projectId: string } }>(
+    '/projects/:projectId/public-share/regenerate',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Projects', 'Sharing'],
+        description: 'Regenerate public share token (invalidates old links)',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['projectId'],
+          properties: {
+            projectId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { projectId } = request.params;
+      const userId = request.user!.userId;
+
+      // Only owner or editor can regenerate token
+      const role = await projectService.getUserRole(projectId, userId);
+      if (!role || role === 'viewer') {
+        return reply.code(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'You do not have permission to manage public sharing',
+        });
+      }
+
+      const project = await projectService.regeneratePublicShareToken(projectId);
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
+        });
+      }
+
+      return reply.send({
+        publicShareToken: project.publicShareToken,
+        publicShareEnabled: project.publicShareEnabled,
+      });
+    }
+  );
+
+  // Public view - Get project by share token (NO AUTH REQUIRED)
+  fastify.get<{ Params: { token: string } }>(
+    '/public/projects/:token',
+    {
+      schema: {
+        tags: ['Projects', 'Public'],
+        description: 'View a project via public share link (no authentication required)',
+        params: {
+          type: 'object',
+          required: ['token'],
+          properties: {
+            token: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { token } = request.params;
+
+      const project = await projectService.findByPublicShareToken(token);
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found or public sharing is disabled',
+        });
+      }
+
+      // Get owner info
+      const owner = await userService.findById(project.ownerId.toString());
+
+      // Return limited project info for public view
+      return reply.send({
+        project: {
+          _id: project._id,
+          name: project.name,
+          description: project.description,
+          status: project.status,
+          color: project.color,
+          tags: project.tags,
+          stats: project.stats,
+          owner: owner ? userService.toPublic(owner) : null,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+        },
+      });
+    }
+  );
+
+  // Public view - Get project feed by share token (NO AUTH REQUIRED)
+  fastify.get<{ Params: { token: string }; Querystring: { cursor?: string; limit?: number } }>(
+    '/public/projects/:token/feed',
+    {
+      schema: {
+        tags: ['Projects', 'Public'],
+        description: 'View project updates via public share link (no authentication required)',
+        params: {
+          type: 'object',
+          required: ['token'],
+          properties: {
+            token: { type: 'string' },
+          },
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            cursor: { type: 'string' },
+            limit: { type: 'integer', minimum: 1, maximum: 50 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { token } = request.params;
+
+      const project = await projectService.findByPublicShareToken(token);
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found or public sharing is disabled',
+        });
+      }
+
+      const result = await feedService.getProjectFeed(project._id.toString(), {
+        cursor: request.query.cursor,
+        limit: request.query.limit,
+      });
+
+      // Enrich updates with author info
+      const authorIds = [...new Set(result.updates.map((u) => u.authorId.toString()))];
+      const authors = await userService.findByIds(authorIds);
+      const authorsMap = new Map(authors.map((a) => [a._id.toString(), userService.toPublic(a)]));
+
+      const enrichedUpdates = result.updates.map((update) => ({
+        ...update,
+        author: authorsMap.get(update.authorId.toString()) || null,
+      }));
+
+      return reply.send({
+        updates: enrichedUpdates,
+        hasMore: result.hasMore,
+        nextCursor: result.nextCursor,
+      });
+    }
+  );
 };
 
 export default projectsRoutes;

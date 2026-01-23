@@ -90,6 +90,8 @@ export interface Project {
   tags: string[];
   pinnedUpdateId?: ObjectId;
   stats: ProjectStats;
+  publicShareToken?: string; // Token for public read-only access
+  publicShareEnabled?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

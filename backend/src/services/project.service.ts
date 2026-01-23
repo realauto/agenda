@@ -295,4 +295,70 @@ export class ProjectService {
       .sort({ updatedAt: -1 })
       .toArray();
   }
+
+  // Enable public share and generate token
+  async enablePublicShare(projectId: string): Promise<Project | null> {
+    const project = await this.findById(projectId);
+    if (!project) return null;
+
+    // If already has a token, just enable it
+    const token = project.publicShareToken || crypto.randomBytes(16).toString('hex');
+
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(projectId) },
+      {
+        $set: {
+          publicShareToken: token,
+          publicShareEnabled: true,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
+  }
+
+  // Disable public share (keeps token for re-enabling)
+  async disablePublicShare(projectId: string): Promise<Project | null> {
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(projectId) },
+      {
+        $set: {
+          publicShareEnabled: false,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
+  }
+
+  // Regenerate public share token
+  async regeneratePublicShareToken(projectId: string): Promise<Project | null> {
+    const token = crypto.randomBytes(16).toString('hex');
+
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(projectId) },
+      {
+        $set: {
+          publicShareToken: token,
+          publicShareEnabled: true,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
+  }
+
+  // Find project by public share token
+  async findByPublicShareToken(token: string): Promise<Project | null> {
+    return this.collection.findOne({
+      publicShareToken: token,
+      publicShareEnabled: true,
+    });
+  }
 }

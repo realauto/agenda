@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { Project, ProjectStatus, ProjectVisibility, ProjectRole, ProjectInvite, User } from '../types';
+import type { Project, ProjectStatus, ProjectVisibility, ProjectRole, ProjectInvite, User, Update } from '../types';
 
 export interface CreateProjectInput {
   name: string;
@@ -100,6 +100,29 @@ export const projectsApi = {
   revokeInvite: async (projectId: string, inviteId: string): Promise<void> => {
     await apiClient.delete(`/projects/${projectId}/invites/${inviteId}`);
   },
+
+  // Public share link methods
+  enablePublicShare: async (
+    projectId: string
+  ): Promise<{ publicShareToken: string; publicShareEnabled: boolean }> => {
+    const response = await apiClient.post<{ publicShareToken: string; publicShareEnabled: boolean }>(
+      `/projects/${projectId}/public-share`
+    );
+    return response.data;
+  },
+
+  disablePublicShare: async (projectId: string): Promise<void> => {
+    await apiClient.delete(`/projects/${projectId}/public-share`);
+  },
+
+  regeneratePublicShareToken: async (
+    projectId: string
+  ): Promise<{ publicShareToken: string; publicShareEnabled: boolean }> => {
+    const response = await apiClient.post<{ publicShareToken: string; publicShareEnabled: boolean }>(
+      `/projects/${projectId}/public-share/regenerate`
+    );
+    return response.data;
+  },
 };
 
 // Invites API (for current user's pending invites)
@@ -118,6 +141,25 @@ export const invitesApi = {
 
   decline: async (token: string): Promise<{ message: string }> => {
     const response = await apiClient.post<{ message: string }>(`/invites/${token}/decline`);
+    return response.data;
+  },
+};
+
+// Public API (no authentication required)
+export const publicApi = {
+  getProject: async (token: string): Promise<{ project: Project }> => {
+    const response = await apiClient.get<{ project: Project }>(`/public/projects/${token}`);
+    return response.data;
+  },
+
+  getProjectFeed: async (
+    token: string,
+    params?: { cursor?: string; limit?: number }
+  ): Promise<{ updates: Update[]; hasMore: boolean; nextCursor?: string }> => {
+    const response = await apiClient.get<{ updates: Update[]; hasMore: boolean; nextCursor?: string }>(
+      `/public/projects/${token}/feed`,
+      { params }
+    );
     return response.data;
   },
 };

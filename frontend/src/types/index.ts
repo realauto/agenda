@@ -132,7 +132,7 @@ export interface Comment {
 export interface Update {
   _id: string;
   projectId: string;
-  teamId: string;
+  teamId?: string;
   authorId: string;
   author?: User;
   content: string;

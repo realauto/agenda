@@ -75,7 +75,7 @@ export default function FeedScreen() {
         onEditComment={editComment}
         onDeleteComment={deleteComment}
         emptyTitle="Your feed is empty"
-        emptyMessage="Join a team and follow projects to see updates here"
+        emptyMessage="Create a project and post updates to see them here"
         ListHeaderComponent={
           <CategoryFilter selected={categoryFilter} onChange={setCategoryFilter} />
         }

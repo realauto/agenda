@@ -140,7 +140,7 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       onRequest: [authenticate],
       schema: {
         tags: ['Updates'],
-        description: 'Get combined feed from all teams',
+        description: 'Get combined feed from all projects',
         security: [{ bearerAuth: [] }],
         querystring: {
           type: 'object',
@@ -162,18 +162,18 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
         });
       }
 
-      // Get all teams the user is a member of
-      const teams = await teamService.findByUserId(request.user!.userId);
-      const teamIds = teams.map((t) => t._id.toString());
+      // Get all projects the user has access to (owner or collaborator)
+      const projects = await projectService.findByUserId(request.user!.userId);
+      const projectIds = projects.map((p) => p._id.toString());
 
-      if (teamIds.length === 0) {
+      if (projectIds.length === 0) {
         return reply.send({
           updates: [],
           hasMore: false,
         });
       }
 
-      const result = await feedService.getFeed(teamIds, validation.data);
+      const result = await feedService.getFeed(projectIds, validation.data);
 
       // Enrich updates with author info
       const authorIds = [...new Set(result.updates.map((u) => u.authorId.toString()))];

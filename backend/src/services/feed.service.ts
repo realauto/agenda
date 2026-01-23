@@ -77,12 +77,12 @@ export class FeedService {
   }
 
   async getFeed(
-    teamIds: string[],
+    projectIds: string[],
     query: FeedQueryInput
   ): Promise<{ updates: Update[]; hasMore: boolean; nextCursor?: string }> {
     const { limit, cursor } = parsePagination(query);
     const filter: Filter<Update> = {
-      teamId: { $in: teamIds.map((id) => new ObjectId(id)) },
+      projectId: { $in: projectIds.map((id) => new ObjectId(id)) },
     };
 
     if (cursor) {

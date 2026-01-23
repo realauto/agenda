@@ -209,11 +209,15 @@ export default function ProjectsScreen() {
             active={filter === 'shared'}
             onPress={() => setFilter('shared')}
           />
-          <FilterButton
-            label="Archived"
-            active={filter === 'archived'}
+          <TouchableOpacity
+            style={[
+              styles.iconFilterButton,
+              { backgroundColor: filter === 'archived' ? colors.primary : colors.background },
+            ]}
             onPress={() => setFilter('archived')}
-          />
+          >
+            <Feather name="archive" size={16} color={filter === 'archived' ? '#fff' : colors.textSecondary} />
+          </TouchableOpacity>
         </View>
         <View style={styles.viewToggle}>
           <TouchableOpacity
@@ -534,6 +538,10 @@ const styles = StyleSheet.create({
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
+    borderRadius: 20,
+  },
+  iconFilterButton: {
+    padding: 8,
     borderRadius: 20,
   },
   filterText: {

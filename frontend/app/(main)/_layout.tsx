@@ -10,6 +10,7 @@ export default function MainLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
@@ -29,10 +30,7 @@ export default function MainLayout() {
       <Tabs.Screen
         name="(teams)"
         options={{
-          title: 'Teams',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="users" size={size} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen

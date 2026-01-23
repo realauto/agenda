@@ -1,5 +1,5 @@
 import { Collection, ObjectId } from 'mongodb';
-import type { Project, ProjectRole, ProjectInvite, ProjectInviteStatus } from '../types/index.js';
+import type { Project, ProjectRole, ProjectInvite, ProjectInviteStatus, AllUsersAccess } from '../types/index.js';
 import type { CreateProjectInput, UpdateProjectInput } from '../models/Project.js';
 import { generateSlug } from '../utils/index.js';
 import crypto from 'crypto';
@@ -42,7 +42,7 @@ export class ProjectService {
     return this.collection.findOne({ slug, ownerId: new ObjectId(ownerId) });
   }
 
-  // Get all projects where user is owner or collaborator
+  // Get all projects where user is owner, collaborator, or allUsersAccess is set
   async findByUserId(userId: string): Promise<Project[]> {
     const userObjectId = new ObjectId(userId);
     return this.collection
@@ -50,6 +50,7 @@ export class ProjectService {
         $or: [
           { ownerId: userObjectId },
           { 'collaborators.userId': userObjectId },
+          { allUsersAccess: { $in: ['view', 'edit'] } },
         ],
       })
       .sort({ updatedAt: -1 })
@@ -97,15 +98,28 @@ export class ProjectService {
     const project = await this.findById(projectId);
     if (!project) return null;
 
+    // Owner check
     if (project.ownerId.toString() === userId) {
       return 'owner';
     }
 
+    // Explicit collaborator check
     const collaborator = project.collaborators.find(
       (c) => c.userId.toString() === userId
     );
+    if (collaborator) {
+      return collaborator.role;
+    }
 
-    return collaborator?.role ?? null;
+    // All-users access check (for authenticated users)
+    if (project.allUsersAccess === 'edit') {
+      return 'editor';
+    }
+    if (project.allUsersAccess === 'view') {
+      return 'viewer';
+    }
+
+    return null;
   }
 
   // Add collaborator to project
@@ -360,5 +374,38 @@ export class ProjectService {
       publicShareToken: token,
       publicShareEnabled: true,
     });
+  }
+
+  // Set all-users access level
+  async setAllUsersAccess(
+    projectId: string,
+    access: AllUsersAccess | null
+  ): Promise<Project | null> {
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (access === null) {
+      // Remove the field entirely
+      const result = await this.collection.findOneAndUpdate(
+        { _id: new ObjectId(projectId) },
+        {
+          $unset: { allUsersAccess: '' },
+          $set: { updatedAt: new Date() },
+        },
+        { returnDocument: 'after' }
+      );
+      return result;
+    }
+
+    updateData.allUsersAccess = access;
+
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(projectId) },
+      { $set: updateData },
+      { returnDocument: 'after' }
+    );
+
+    return result;
   }
 }

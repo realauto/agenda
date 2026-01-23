@@ -49,6 +49,7 @@ export interface Team {
 export type ProjectStatus = 'active' | 'paused' | 'completed' | 'archived';
 export type ProjectVisibility = 'public' | 'private' | 'collaborators';
 export type ProjectRole = 'owner' | 'editor' | 'viewer';
+export type AllUsersAccess = 'view' | 'edit';
 
 export interface ProjectCollaborator {
   userId: string;
@@ -87,6 +88,7 @@ export interface Project {
   latestUpdate?: ProjectLatestUpdate;
   publicShareToken?: string;
   publicShareEnabled?: boolean;
+  allUsersAccess?: AllUsersAccess;
   createdAt: string;
   updatedAt: string;
 }
@@ -186,6 +188,12 @@ export interface Invite {
     name: string;
     avatar?: string;
   };
+}
+
+// User connection types (for Members tab)
+export interface UserConnection {
+  user: User;
+  sharedProjectCount: number;
 }
 
 // Auth types

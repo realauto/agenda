@@ -764,6 +764,155 @@ const projectsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
     }
   );
 
+  // Add collaborator directly (for existing users)
+  fastify.post<{
+    Params: { projectId: string };
+    Body: { userId: string; role: 'editor' | 'viewer' };
+  }>(
+    '/projects/:projectId/collaborators',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Projects', 'Collaborators'],
+        description: 'Add an existing user as collaborator directly (no invite)',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['projectId'],
+          properties: {
+            projectId: { type: 'string' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['userId', 'role'],
+          properties: {
+            userId: { type: 'string' },
+            role: { type: 'string', enum: ['editor', 'viewer'] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { projectId } = request.params;
+      const { userId: targetUserId, role } = request.body;
+
+      // Check permission (owner or editor can add)
+      const userRole = await projectService.getUserRole(projectId, request.user!.userId);
+      if (!userRole || userRole === 'viewer') {
+        return reply.code(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'You do not have permission to add collaborators',
+        });
+      }
+
+      const project = await projectService.findById(projectId);
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
+        });
+      }
+
+      // Check if user exists
+      const targetUser = await userService.findById(targetUserId);
+      if (!targetUser) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'User not found',
+        });
+      }
+
+      // Check if already owner
+      if (project.ownerId.toString() === targetUserId) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'User is the project owner',
+        });
+      }
+
+      // Check if already collaborator
+      if (project.collaborators.some((c) => c.userId.toString() === targetUserId)) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'User is already a collaborator',
+        });
+      }
+
+      // Add directly
+      await projectService.addCollaborator(projectId, targetUserId, role as ProjectRole);
+
+      return reply.code(201).send({
+        message: 'Collaborator added',
+        collaborator: {
+          userId: targetUserId,
+          role,
+          user: userService.toPublic(targetUser),
+        },
+      });
+    }
+  );
+
+  // Set all-users access level
+  fastify.patch<{
+    Params: { projectId: string };
+    Body: { allUsersAccess: 'view' | 'edit' | null };
+  }>(
+    '/projects/:projectId/all-users-access',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Projects', 'Sharing'],
+        description: 'Set all-users access level (authenticated users only)',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['projectId'],
+          properties: {
+            projectId: { type: 'string' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['allUsersAccess'],
+          properties: {
+            allUsersAccess: { type: ['string', 'null'], enum: ['view', 'edit', null] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { projectId } = request.params;
+      const { allUsersAccess } = request.body;
+
+      // Only owner can change all-users access
+      const role = await projectService.getUserRole(projectId, request.user!.userId);
+      if (role !== 'owner') {
+        return reply.code(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Only the project owner can change all-users access',
+        });
+      }
+
+      const project = await projectService.setAllUsersAccess(projectId, allUsersAccess);
+      if (!project) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
+        });
+      }
+
+      return reply.send({ project });
+    }
+  );
+
   // Enable public share link
   fastify.post<{ Params: { projectId: string } }>(
     '/projects/:projectId/public-share',

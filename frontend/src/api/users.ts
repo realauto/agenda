@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { User, UserSettings } from '../types';
+import type { User, UserSettings, UserConnection } from '../types';
 
 export interface UpdateUserInput {
   displayName?: string;
@@ -21,6 +21,25 @@ export const usersApi = {
 
   updateMe: async (data: UpdateUserInput): Promise<{ user: User }> => {
     const response = await apiClient.patch<{ user: User }>('/users/me', data);
+    return response.data;
+  },
+
+  // Search users by username, email, or display name
+  searchUsers: async (
+    query: string,
+    excludeIds?: string[]
+  ): Promise<{ users: User[] }> => {
+    const params: Record<string, string> = { q: query };
+    if (excludeIds?.length) {
+      params.exclude = excludeIds.join(',');
+    }
+    const response = await apiClient.get<{ users: User[] }>('/users/search', { params });
+    return response.data;
+  },
+
+  // Get connected users (users who share projects with current user)
+  getConnections: async (): Promise<{ connections: UserConnection[] }> => {
+    const response = await apiClient.get<{ connections: UserConnection[] }>('/users/connections');
     return response.data;
   },
 };

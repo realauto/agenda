@@ -76,6 +76,8 @@ export interface ProjectStats {
   lastUpdateAt?: Date;
 }
 
+export type AllUsersAccess = 'view' | 'edit';
+
 export interface Project {
   _id: ObjectId;
   name: string;
@@ -92,6 +94,7 @@ export interface Project {
   stats: ProjectStats;
   publicShareToken?: string; // Token for public read-only access
   publicShareEnabled?: boolean;
+  allUsersAccess?: AllUsersAccess; // Allow all authenticated users to access
   createdAt: Date;
   updatedAt: Date;
 }

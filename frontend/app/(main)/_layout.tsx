@@ -38,6 +38,15 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
+        name="(members)"
+        options={{
+          title: 'Members',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="users" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="(projects)"
         options={{
           title: 'Projects',

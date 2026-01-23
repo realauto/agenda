@@ -6,6 +6,57 @@ import { authenticate } from '../middleware/authenticate.js';
 const usersRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   const userService = new UserService(fastify.mongo.collections.users);
 
+  // Search users by username, email, or displayName
+  fastify.get<{ Querystring: { q: string; exclude?: string } }>(
+    '/search',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Users'],
+        description: 'Search users by username, email, or display name',
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          required: ['q'],
+          properties: {
+            q: { type: 'string', minLength: 2 },
+            exclude: { type: 'string' }, // comma-separated user IDs to exclude
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { q, exclude } = request.query;
+      const excludeIds = exclude ? exclude.split(',').filter(Boolean) : [];
+
+      // Always exclude the current user from search results
+      excludeIds.push(request.user!.userId);
+
+      const users = await userService.searchUsers(q, excludeIds, 10);
+      return reply.send({ users });
+    }
+  );
+
+  // Get connected users (users who share projects with current user)
+  fastify.get(
+    '/connections',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Users'],
+        description: 'Get users who share projects with the current user',
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    async (request, reply) => {
+      const connections = await userService.getConnectedUsers(
+        request.user!.userId,
+        fastify.mongo.collections.projects
+      );
+      return reply.send({ connections });
+    }
+  );
+
   // Get user by ID
   fastify.get<{ Params: { userId: string } }>(
     '/:userId',

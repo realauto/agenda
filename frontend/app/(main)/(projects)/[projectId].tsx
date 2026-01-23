@@ -24,7 +24,8 @@ import { FeedList } from '../../../src/components/feed/FeedList';
 import { CategoryFilter } from '../../../src/components/feed/CategoryFilter';
 import { useProjectFeed } from '../../../src/hooks/useFeed';
 import { projectsApi, type CollaboratorsResponse } from '../../../src/api/projects';
-import type { Project, ProjectRole, ProjectStatus } from '../../../src/types';
+import { usersApi } from '../../../src/api/users';
+import type { Project, ProjectRole, ProjectStatus, User, AllUsersAccess } from '../../../src/types';
 
 export default function ProjectDetailScreen() {
   const colors = useColors();
@@ -40,6 +41,15 @@ export default function ProjectDetailScreen() {
   const [isInviting, setIsInviting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isTogglingPublicShare, setIsTogglingPublicShare] = useState(false);
+
+  // User search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+
+  // All users access state
+  const [isUpdatingAllUsersAccess, setIsUpdatingAllUsersAccess] = useState(false);
 
   const statusColors: Record<string, string> = {
     active: colors.success,
@@ -180,6 +190,61 @@ export default function ProjectDetailScreen() {
     } else {
       // For native, we'd use Clipboard API from expo-clipboard
       showAlert('Public Link', url);
+    }
+  };
+
+  // Search users handler
+  const handleSearchUsers = async (query: string) => {
+    setSearchQuery(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Exclude owner and existing collaborators
+      const excludeIds = [
+        project?.ownerId,
+        ...(collaborators?.collaborators.map((c) => c.userId) || []),
+      ].filter(Boolean) as string[];
+
+      const { users } = await usersApi.searchUsers(query, excludeIds);
+      setSearchResults(users);
+    } catch (error) {
+      console.error('Search failed:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Add collaborator directly
+  const handleAddCollaborator = async (user: User) => {
+    setIsAddingUser(true);
+    try {
+      await projectsApi.addCollaborator(projectId!, user._id, inviteRole);
+      showAlert('Success', `${user.displayName || user.username} added as ${inviteRole}`);
+      setSearchQuery('');
+      setSearchResults([]);
+      loadProject();
+    } catch (error: any) {
+      showAlert('Error', error.response?.data?.message || 'Failed to add collaborator');
+    } finally {
+      setIsAddingUser(false);
+    }
+  };
+
+  // Set all users access
+  const handleSetAllUsersAccess = async (access: AllUsersAccess | null) => {
+    if (!project) return;
+    setIsUpdatingAllUsersAccess(true);
+    try {
+      const response = await projectsApi.setAllUsersAccess(projectId!, access);
+      setProject(response.project);
+    } catch (error: any) {
+      showAlert('Error', error.response?.data?.message || 'Failed to update access');
+    } finally {
+      setIsUpdatingAllUsersAccess(false);
     }
   };
 
@@ -465,6 +530,64 @@ export default function ProjectDetailScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
+            {/* All Users Access Section - Owner only */}
+            {userRole === 'owner' && (
+              <>
+                <View style={styles.allUsersSection}>
+                  <View style={styles.allUsersHeader}>
+                    <View style={styles.allUsersTitleRow}>
+                      <Feather name="users" size={20} color={colors.primary} />
+                      <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0, marginLeft: 8 }]}>
+                        All Users Access
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.allUsersDescription, { color: colors.textSecondary }]}>
+                    Allow all registered users to access this project (requires login)
+                  </Text>
+                  <View style={styles.accessOptions}>
+                    <TouchableOpacity
+                      style={[
+                        styles.accessOption,
+                        { borderColor: colors.border },
+                        !project?.allUsersAccess && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                      ]}
+                      onPress={() => handleSetAllUsersAccess(null)}
+                      disabled={isUpdatingAllUsersAccess}
+                    >
+                      <Feather name="lock" size={16} color={!project?.allUsersAccess ? colors.primary : colors.textSecondary} />
+                      <Text style={[styles.accessText, { color: colors.textSecondary }, !project?.allUsersAccess && { color: colors.primary }]}>Off</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.accessOption,
+                        { borderColor: colors.border },
+                        project?.allUsersAccess === 'view' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                      ]}
+                      onPress={() => handleSetAllUsersAccess('view')}
+                      disabled={isUpdatingAllUsersAccess}
+                    >
+                      <Feather name="eye" size={16} color={project?.allUsersAccess === 'view' ? colors.primary : colors.textSecondary} />
+                      <Text style={[styles.accessText, { color: colors.textSecondary }, project?.allUsersAccess === 'view' && { color: colors.primary }]}>View All</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.accessOption,
+                        { borderColor: colors.border },
+                        project?.allUsersAccess === 'edit' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                      ]}
+                      onPress={() => handleSetAllUsersAccess('edit')}
+                      disabled={isUpdatingAllUsersAccess}
+                    >
+                      <Feather name="edit-2" size={16} color={project?.allUsersAccess === 'edit' ? colors.primary : colors.textSecondary} />
+                      <Text style={[styles.accessText, { color: colors.textSecondary }, project?.allUsersAccess === 'edit' && { color: colors.primary }]}>Edit All</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              </>
+            )}
+
             {/* Public Link Section */}
             <View style={styles.publicLinkSection}>
               <View style={styles.publicLinkHeader}>
@@ -508,17 +631,16 @@ export default function ProjectDetailScreen() {
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-            {/* Invite Form */}
+            {/* Add User Section */}
             <View style={styles.inviteSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Invite people</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Add people</Text>
               <View style={styles.inviteForm}>
                 <TextInput
                   style={[styles.emailInput, { backgroundColor: colors.backgroundSecondary, color: colors.text }]}
-                  placeholder="Enter email address"
+                  placeholder="Search by username or email"
                   placeholderTextColor={colors.textMuted}
-                  value={inviteEmail}
-                  onChangeText={setInviteEmail}
-                  keyboardType="email-address"
+                  value={searchQuery}
+                  onChangeText={handleSearchUsers}
                   autoCapitalize="none"
                 />
                 <View style={styles.roleSelector}>
@@ -559,6 +681,62 @@ export default function ProjectDetailScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
+              </View>
+
+              {/* Search Results */}
+              {searchQuery.length >= 2 && (
+                <View style={[styles.searchResults, { backgroundColor: colors.backgroundSecondary }]}>
+                  {isSearching ? (
+                    <Text style={[styles.searchingText, { color: colors.textMuted }]}>Searching...</Text>
+                  ) : searchResults.length > 0 ? (
+                    searchResults.map((user) => (
+                      <TouchableOpacity
+                        key={user._id}
+                        style={[styles.searchResultRow, { borderBottomColor: colors.borderLight }]}
+                        onPress={() => handleAddCollaborator(user)}
+                        disabled={isAddingUser}
+                      >
+                        <Avatar
+                          uri={user.avatar}
+                          name={user.displayName || user.username}
+                          size={36}
+                        />
+                        <View style={styles.searchResultInfo}>
+                          <Text style={[styles.searchResultName, { color: colors.text }]}>
+                            {user.displayName || user.username}
+                          </Text>
+                          <Text style={[styles.searchResultEmail, { color: colors.textMuted }]}>
+                            @{user.username}
+                          </Text>
+                        </View>
+                        <Feather name="plus" size={20} color={colors.primary} />
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Text style={[styles.noResultsText, { color: colors.textMuted }]}>No users found</Text>
+                  )}
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            {/* Email Invite Fallback */}
+            <View style={styles.inviteSection}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Invite by email</Text>
+              <Text style={[styles.inviteDescription, { color: colors.textSecondary }]}>
+                For users not yet registered
+              </Text>
+              <View style={styles.inviteForm}>
+                <TextInput
+                  style={[styles.emailInput, { backgroundColor: colors.backgroundSecondary, color: colors.text }]}
+                  placeholder="Enter email address"
+                  placeholderTextColor={colors.textMuted}
+                  value={inviteEmail}
+                  onChangeText={setInviteEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
               </View>
               <Button
                 title="Send Invite"
@@ -996,5 +1174,75 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginVertical: 16,
+  },
+  allUsersSection: {
+    marginBottom: 16,
+  },
+  allUsersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  allUsersTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  allUsersDescription: {
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  accessOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  accessOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+  },
+  accessText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  searchResults: {
+    borderRadius: 8,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+  },
+  searchResultInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  searchResultName: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  searchResultEmail: {
+    fontSize: 13,
+  },
+  searchingText: {
+    padding: 12,
+    textAlign: 'center',
+  },
+  noResultsText: {
+    padding: 12,
+    textAlign: 'center',
+  },
+  inviteDescription: {
+    fontSize: 13,
+    marginBottom: 12,
   },
 });

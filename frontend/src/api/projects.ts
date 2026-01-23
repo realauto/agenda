@@ -101,6 +101,31 @@ export const projectsApi = {
     await apiClient.delete(`/projects/${projectId}/invites/${inviteId}`);
   },
 
+  // Add collaborator directly (for existing users)
+  addCollaborator: async (
+    projectId: string,
+    userId: string,
+    role: 'editor' | 'viewer'
+  ): Promise<{ message: string; collaborator: { userId: string; role: ProjectRole; user: User } }> => {
+    const response = await apiClient.post<{
+      message: string;
+      collaborator: { userId: string; role: ProjectRole; user: User };
+    }>(`/projects/${projectId}/collaborators`, { userId, role });
+    return response.data;
+  },
+
+  // Set all-users access level
+  setAllUsersAccess: async (
+    projectId: string,
+    access: 'view' | 'edit' | null
+  ): Promise<{ project: Project }> => {
+    const response = await apiClient.patch<{ project: Project }>(
+      `/projects/${projectId}/all-users-access`,
+      { allUsersAccess: access }
+    );
+    return response.data;
+  },
+
   // Public share link methods
   enablePublicShare: async (
     projectId: string

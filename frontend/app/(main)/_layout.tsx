@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../../src/hooks/useColors';
 
 export default function MainLayout() {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -14,6 +16,8 @@ export default function MainLayout() {
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 50 + Math.max(insets.bottom, 8),
         },
         headerShown: false,
       }}

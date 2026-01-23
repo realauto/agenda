@@ -97,6 +97,15 @@ export function UpdateCard({
           <View style={styles.meta}>
             <Text style={[styles.time, { color: colors.textSecondary }]}>{formatRelativeTime(update.createdAt)}</Text>
             {update.isEdited && <Text style={[styles.edited, { color: colors.textMuted }]}> · edited</Text>}
+            {update.project && (
+              <>
+                <Text style={[styles.projectSeparator, { color: colors.textMuted }]}> · </Text>
+                <View style={[styles.projectDot, { backgroundColor: update.project.color || colors.primary }]} />
+                <Text style={[styles.projectName, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {update.project.name}
+                </Text>
+              </>
+            )}
           </View>
         </View>
         <View style={styles.badges}>
@@ -230,12 +239,27 @@ const styles = StyleSheet.create({
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    flex: 1,
   },
   time: {
     fontSize: 13,
   },
   edited: {
     fontSize: 13,
+  },
+  projectSeparator: {
+    fontSize: 13,
+  },
+  projectDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 4,
+  },
+  projectName: {
+    fontSize: 13,
+    flexShrink: 1,
   },
   badges: {
     marginRight: 8,

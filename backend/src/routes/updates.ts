@@ -180,9 +180,13 @@ const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       const authors = await userService.findByIds(authorIds);
       const authorsMap = new Map(authors.map((a) => [a._id.toString(), userService.toPublic(a)]));
 
+      // Create projects map for enrichment
+      const projectsMap = new Map(projects.map((p) => [p._id.toString(), { _id: p._id, name: p.name, color: p.color }]));
+
       const enrichedUpdates = result.updates.map((update) => ({
         ...update,
         author: authorsMap.get(update.authorId.toString()) || null,
+        project: projectsMap.get(update.projectId.toString()) || null,
       }));
 
       return reply.send({

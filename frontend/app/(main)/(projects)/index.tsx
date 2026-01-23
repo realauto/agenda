@@ -19,6 +19,7 @@ import { invitesApi } from '../../../src/api/invites';
 import type { Project, ProjectInvite } from '../../../src/types';
 
 type FilterType = 'all' | 'owned' | 'shared' | 'archived';
+type ViewMode = 'list' | 'card';
 
 // Helper function to format relative date
 function formatRelativeDate(dateString?: string): string {
@@ -54,6 +55,7 @@ export default function ProjectsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('card');
 
   // Helper function to get status color
   const getStatusColor = (status: string): string => {
@@ -191,26 +193,48 @@ export default function ProjectsScreen() {
       )}
 
       <View style={styles.filterRow}>
-        <FilterButton
-          label="All"
-          active={filter === 'all'}
-          onPress={() => setFilter('all')}
-        />
-        <FilterButton
-          label="My Projects"
-          active={filter === 'owned'}
-          onPress={() => setFilter('owned')}
-        />
-        <FilterButton
-          label="Shared"
-          active={filter === 'shared'}
-          onPress={() => setFilter('shared')}
-        />
-        <FilterButton
-          label="Archived"
-          active={filter === 'archived'}
-          onPress={() => setFilter('archived')}
-        />
+        <View style={styles.filterButtons}>
+          <FilterButton
+            label="All"
+            active={filter === 'all'}
+            onPress={() => setFilter('all')}
+          />
+          <FilterButton
+            label="My Projects"
+            active={filter === 'owned'}
+            onPress={() => setFilter('owned')}
+          />
+          <FilterButton
+            label="Shared"
+            active={filter === 'shared'}
+            onPress={() => setFilter('shared')}
+          />
+          <FilterButton
+            label="Archived"
+            active={filter === 'archived'}
+            onPress={() => setFilter('archived')}
+          />
+        </View>
+        <View style={styles.viewToggle}>
+          <TouchableOpacity
+            style={[
+              styles.viewToggleButton,
+              { backgroundColor: viewMode === 'card' ? colors.primary : colors.background },
+            ]}
+            onPress={() => setViewMode('card')}
+          >
+            <Feather name="grid" size={18} color={viewMode === 'card' ? '#fff' : colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.viewToggleButton,
+              { backgroundColor: viewMode === 'list' ? colors.primary : colors.background },
+            ]}
+            onPress={() => setViewMode('list')}
+          >
+            <Feather name="list" size={18} color={viewMode === 'list' ? '#fff' : colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -300,6 +324,78 @@ export default function ProjectsScreen() {
     </View>
   );
 
+  const renderCards = () => (
+    <View style={styles.cardsContainer}>
+      {projects.map((project) => (
+        <Pressable
+          key={project._id}
+          style={({ pressed }) => [
+            styles.projectCard,
+            { backgroundColor: colors.background, borderColor: colors.border },
+            pressed && { backgroundColor: colors.borderLight },
+          ]}
+          onPress={() => router.push(`/(main)/(projects)/${project._id}`)}
+        >
+          <View style={styles.cardHeader}>
+            <View style={styles.cardTitleRow}>
+              <View
+                style={[
+                  styles.cardColorDot,
+                  { backgroundColor: project.color || colors.primary },
+                ]}
+              />
+              <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
+                {project.name}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.cardStatus,
+                { color: getStatusColor(project.status) },
+              ]}
+            >
+              {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+            </Text>
+          </View>
+
+          {project.latestUpdate ? (
+            <View style={[styles.latestUpdateBox, { backgroundColor: colors.backgroundSecondary }]}>
+              <Text style={[styles.latestUpdateContent, { color: colors.text }]} numberOfLines={2}>
+                {project.latestUpdate.content}
+              </Text>
+              <View style={styles.latestUpdateMeta}>
+                <Text style={[styles.latestUpdateAuthor, { color: colors.textSecondary }]}>
+                  {project.latestUpdate.author?.displayName || project.latestUpdate.author?.username || 'Unknown'}
+                </Text>
+                <Text style={[styles.latestUpdateTime, { color: colors.textMuted }]}>
+                  {' · '}{formatRelativeDate(project.latestUpdate.createdAt)}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.latestUpdateBox, { backgroundColor: colors.backgroundSecondary }]}>
+              <Text style={[styles.noUpdatesText, { color: colors.textMuted }]}>
+                No updates yet
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.cardFooter}>
+            <View style={styles.cardStat}>
+              <Feather name="message-square" size={14} color={colors.textMuted} />
+              <Text style={[styles.cardStatText, { color: colors.textMuted }]}>
+                {project.stats?.totalUpdates || 0}
+              </Text>
+            </View>
+            <Text style={[styles.cardTime, { color: colors.textMuted }]}>
+              {formatRelativeDate(project.updatedAt)}
+            </Text>
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['left', 'right']}>
       <ScrollView
@@ -332,6 +428,8 @@ export default function ProjectsScreen() {
             actionLabel={filter !== 'shared' && filter !== 'archived' ? 'Create Project' : undefined}
             onAction={filter !== 'shared' && filter !== 'archived' ? () => router.push('/(main)/(projects)/new') : undefined}
           />
+        ) : viewMode === 'card' ? (
+          renderCards()
         ) : (
           renderTable()
         )}
@@ -424,8 +522,14 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  filterButtons: {
+    flexDirection: 'row',
     gap: 8,
+    flex: 1,
   },
   filterButton: {
     paddingHorizontal: 16,
@@ -435,6 +539,14 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  viewToggleButton: {
+    padding: 8,
   },
   fab: {
     position: 'absolute',
@@ -514,5 +626,83 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
+  },
+  // Card view styles
+  cardsContainer: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  projectCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  cardColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  cardStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  latestUpdateBox: {
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  latestUpdateContent: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  latestUpdateMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  latestUpdateAuthor: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  latestUpdateTime: {
+    fontSize: 13,
+  },
+  noUpdatesText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  cardStatText: {
+    fontSize: 13,
+  },
+  cardTime: {
+    fontSize: 13,
   },
 });

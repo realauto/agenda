@@ -62,6 +62,14 @@ export interface ProjectStats {
   lastUpdateAt?: string;
 }
 
+export interface ProjectLatestUpdate {
+  _id: string;
+  content: string;
+  authorId: string;
+  author?: User;
+  createdAt: string;
+}
+
 export interface Project {
   _id: string;
   name: string;
@@ -76,6 +84,7 @@ export interface Project {
   tags: string[];
   pinnedUpdateId?: string;
   stats: ProjectStats;
+  latestUpdate?: ProjectLatestUpdate;
   createdAt: string;
   updatedAt: string;
 }
@@ -135,6 +144,11 @@ export interface Update {
   teamId?: string;
   authorId: string;
   author?: User;
+  project?: {
+    _id: string;
+    name: string;
+    color?: string;
+  };
   content: string;
   contentHtml?: string;
   category: UpdateCategory;

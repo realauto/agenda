@@ -58,7 +58,36 @@ const projectsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
           projects = await projectService.findByUserId(userId);
       }
 
-      return reply.send({ projects });
+      // Get latest update for each project
+      const projectIds = projects.map((p) => p._id.toString());
+      const latestUpdatesMap = await feedService.getLatestUpdatesByProjectIds(projectIds);
+
+      // Enrich with author info for latest updates
+      const authorIds = [...new Set(
+        Array.from(latestUpdatesMap.values())
+          .filter((u) => u?.authorId)
+          .map((u) => u.authorId.toString())
+      )];
+      const authors = authorIds.length > 0 ? await userService.findByIds(authorIds) : [];
+      const authorsMap = new Map(authors.map((a) => [a._id.toString(), userService.toPublic(a)]));
+
+      const enrichedProjects = projects.map((project) => {
+        const latestUpdate = latestUpdatesMap.get(project._id.toString());
+        return {
+          ...project,
+          latestUpdate: latestUpdate
+            ? {
+                _id: latestUpdate._id,
+                content: latestUpdate.content,
+                authorId: latestUpdate.authorId,
+                author: authorsMap.get(latestUpdate.authorId.toString()) || null,
+                createdAt: latestUpdate.createdAt,
+              }
+            : null,
+        };
+      });
+
+      return reply.send({ projects: enrichedProjects });
     }
   );
 

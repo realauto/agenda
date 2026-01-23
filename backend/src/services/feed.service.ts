@@ -175,6 +175,30 @@ export class FeedService {
     return { updates, hasMore, nextCursor };
   }
 
+  async getLatestUpdatesByProjectIds(projectIds: string[]): Promise<Map<string, Update>> {
+    const pipeline = [
+      {
+        $match: {
+          projectId: { $in: projectIds.map((id) => new ObjectId(id)) },
+        },
+      },
+      { $sort: { createdAt: -1 as const } },
+      {
+        $group: {
+          _id: '$projectId',
+          latestUpdate: { $first: '$$ROOT' },
+        },
+      },
+    ];
+
+    const results = await this.collection.aggregate(pipeline).toArray();
+    const map = new Map<string, Update>();
+    for (const result of results) {
+      map.set(result._id.toString(), result.latestUpdate as Update);
+    }
+    return map;
+  }
+
   async addReaction(updateId: string, userId: string, emoji: string): Promise<Update | null> {
     // Remove existing reaction from same user with same emoji
     await this.collection.updateOne(

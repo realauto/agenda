@@ -87,6 +87,34 @@ export class UserService {
     return user !== null;
   }
 
+  // Create user from email with auto-generated username
+  async createFromEmail(email: string, password: string): Promise<User> {
+    // Extract username from email prefix
+    const emailPrefix = email.split('@')[0];
+    // Remove special characters and lowercase
+    let baseUsername = emailPrefix.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+    // Ensure minimum length
+    if (baseUsername.length < 3) {
+      baseUsername = baseUsername.padEnd(3, 'x');
+    }
+
+    // Find unique username by appending numbers if needed
+    let username = baseUsername;
+    let counter = 1;
+    while (await this.usernameExists(username)) {
+      username = `${baseUsername}${counter}`;
+      counter++;
+    }
+
+    return this.create({
+      username,
+      email,
+      password,
+      displayName: emailPrefix,
+    });
+  }
+
   toPublic(user: User): PublicUser {
     return {
       _id: user._id,

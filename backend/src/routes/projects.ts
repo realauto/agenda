@@ -12,6 +12,7 @@ import {
   type InviteCollaboratorInput,
 } from '../models/Project.js';
 import { authenticate } from '../middleware/authenticate.js';
+import { generateRandomPassword } from '../utils/index.js';
 import type { ProjectRole } from '../types/index.js';
 
 const projectsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
@@ -421,11 +422,14 @@ const projectsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
         });
       }
 
-      // Check if user is already a collaborator
-      const existingUser = await userService.findByEmail(email);
-      if (existingUser) {
+      // Check if user exists
+      let user = await userService.findByEmail(email);
+      let temporaryPassword: string | undefined;
+
+      if (user) {
+        // Check if user is already a collaborator
         const isCollaborator = project!.collaborators.some(
-          (c) => c.userId.toString() === existingUser._id.toString()
+          (c) => c.userId.toString() === user!._id.toString()
         );
         if (isCollaborator) {
           return reply.code(400).send({
@@ -434,36 +438,25 @@ const projectsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
             message: 'This user is already a collaborator',
           });
         }
+      } else {
+        // Auto-create user with random password
+        temporaryPassword = generateRandomPassword(12);
+        user = await userService.createFromEmail(email, temporaryPassword);
       }
 
-      // Check if there's already a pending invite
-      const existingInvites = await projectService.findInvitesByProjectId(
-        request.params.projectId
-      );
-      const pendingInvite = existingInvites.find(
-        (inv) => inv.email.toLowerCase() === email.toLowerCase()
-      );
-      if (pendingInvite) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'An invite is already pending for this email',
-        });
-      }
-
-      // Create invite
-      const invite = await projectService.createInvite(
+      // Add as collaborator directly
+      await projectService.addCollaborator(
         request.params.projectId,
-        request.user!.userId,
-        email,
+        user._id.toString(),
         inviteRole as ProjectRole
       );
 
-      // TODO: Send email notification with invite link
-
       return reply.code(201).send({
-        invite,
-        message: 'Invite sent successfully',
+        user: userService.toPublic(user),
+        temporaryPassword,
+        message: temporaryPassword
+          ? 'User created and added as collaborator'
+          : 'User added as collaborator',
       });
     }
   );

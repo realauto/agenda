@@ -77,8 +77,8 @@ export const projectsApi = {
   inviteCollaborator: async (
     projectId: string,
     data: InviteCollaboratorInput
-  ): Promise<{ invite: ProjectInvite; message: string }> => {
-    const response = await apiClient.post<{ invite: ProjectInvite; message: string }>(
+  ): Promise<{ user: User; temporaryPassword?: string; message: string }> => {
+    const response = await apiClient.post<{ user: User; temporaryPassword?: string; message: string }>(
       `/projects/${projectId}/invite`,
       data
     );

@@ -114,16 +114,37 @@ export default function ProjectDetailScreen() {
 
     setIsInviting(true);
     try {
-      await projectsApi.inviteCollaborator(projectId!, {
+      const result = await projectsApi.inviteCollaborator(projectId!, {
         email: inviteEmail.trim(),
         role: inviteRole,
       });
-      showAlert('Success', 'Invite sent successfully');
+
+      if (result.temporaryPassword) {
+        // New user was auto-created - show password
+        const message = `Account created for ${inviteEmail.trim()}\n\nTemporary password: ${result.temporaryPassword}\n\nPlease share this with the user. They can change it after logging in.`;
+        if (Platform.OS === 'web') {
+          Alert.alert('New User Created', message, [
+            {
+              text: 'Copy Password',
+              onPress: () => {
+                navigator.clipboard.writeText(result.temporaryPassword!);
+                showAlert('Copied', 'Password copied to clipboard');
+              },
+            },
+            { text: 'OK' },
+          ]);
+        } else {
+          showAlert('New User Created', message);
+        }
+      } else {
+        showAlert('Success', `${result.user.displayName || result.user.username} added as ${inviteRole}`);
+      }
+
       setInviteEmail('');
       setShowShareModal(false);
       loadProject(); // Refresh collaborators
     } catch (error: any) {
-      showAlert('Error', error.response?.data?.message || 'Failed to send invite');
+      showAlert('Error', error.response?.data?.message || 'Failed to add member');
     } finally {
       setIsInviting(false);
     }
@@ -721,11 +742,11 @@ export default function ProjectDetailScreen() {
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-            {/* Email Invite Fallback */}
+            {/* Add by Email */}
             <View style={styles.inviteSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Invite by email</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Add by email</Text>
               <Text style={[styles.inviteDescription, { color: colors.textSecondary }]}>
-                For users not yet registered
+                Add existing or new users by email
               </Text>
               <View style={styles.inviteForm}>
                 <TextInput
@@ -739,7 +760,7 @@ export default function ProjectDetailScreen() {
                 />
               </View>
               <Button
-                title="Send Invite"
+                title="Add Member"
                 onPress={handleInvite}
                 loading={isInviting}
                 style={styles.inviteButton}

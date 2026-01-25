@@ -204,6 +204,9 @@ export class UserService {
   ): Promise<{ user: PublicUser; sharedProjectCount: number }[]> {
     const userObjectId = new ObjectId(userId);
 
+    // Get total project count for global access users
+    const totalProjectCount = await projectsCollection.countDocuments();
+
     // Find all projects where user is owner or collaborator
     const projects = await projectsCollection
       .find({
@@ -214,7 +217,7 @@ export class UserService {
       })
       .toArray();
 
-    const totalProjectCount = projects.length;
+    const userProjectCount = projects.length;
 
     // Collect all unique user IDs from these projects
     const userIdSet = new Set<string>();
@@ -237,21 +240,19 @@ export class UserService {
     }
 
     // Also get users with global project access (they have access to all projects)
+    // This includes the current user if they have global access
     const globalAccessUsers = await this.collection
       .find({
-        _id: { $ne: userObjectId },
         globalProjectAccess: { $in: ['view', 'edit'] as GlobalProjectAccess[] },
       })
       .toArray();
 
-    // Add global access users to the set
+    // Add global access users to the set (including current user)
     for (const user of globalAccessUsers) {
       const globalUserId = user._id.toString();
-      if (!userIdSet.has(globalUserId)) {
-        userIdSet.add(globalUserId);
-        // Global access users have access to all projects
-        userProjectCounts.set(globalUserId, totalProjectCount);
-      }
+      userIdSet.add(globalUserId);
+      // Global access users have access to all projects
+      userProjectCounts.set(globalUserId, totalProjectCount);
     }
 
     // Fetch user details

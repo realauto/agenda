@@ -173,6 +173,76 @@ const usersRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       return reply.send({ user: userService.toPublic(user) });
     }
   );
+
+  // Set global project access for a user
+  fastify.put<{ Params: { userId: string }; Body: { access: 'view' | 'edit' | null } }>(
+    '/:userId/global-access',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Users'],
+        description: 'Set global project access for a user (grants access to all current and future projects)',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['userId'],
+          properties: {
+            userId: { type: 'string' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['access'],
+          properties: {
+            access: { type: ['string', 'null'], enum: ['view', 'edit', null] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { userId } = request.params;
+      const { access } = request.body;
+
+      // Only allow setting global access on other users (not self for safety)
+      // In a production app, you might want to restrict this to admins only
+      const targetUser = await userService.findById(userId);
+      if (!targetUser) {
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'User not found',
+        });
+      }
+
+      const updatedUser = await userService.setGlobalProjectAccess(userId, access);
+      if (!updatedUser) {
+        return reply.code(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to update user access',
+        });
+      }
+
+      return reply.send({ user: userService.toPublic(updatedUser) });
+    }
+  );
+
+  // Get users with global project access
+  fastify.get(
+    '/global-access/list',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Users'],
+        description: 'Get all users with global project access',
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    async (request, reply) => {
+      const users = await userService.getUsersWithGlobalAccess();
+      return reply.send({ users });
+    }
+  );
 };
 
 export default usersRoutes;

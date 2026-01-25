@@ -19,6 +19,7 @@ const teamsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   const userService = new UserService(fastify.mongo.collections.users);
   const feedService = new FeedService(fastify.mongo.collections.updates, fastify.mongo.collections.users);
   const projectService = new ProjectService(fastify.mongo.collections.projects);
+  projectService.setUsersCollection(fastify.mongo.collections.users);
 
   // Get all teams for current user
   fastify.get(

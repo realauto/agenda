@@ -1,6 +1,8 @@
 import { ObjectId } from 'mongodb';
 
 // User types
+export type GlobalProjectAccess = 'view' | 'edit';
+
 export interface User {
   _id: ObjectId;
   username: string;
@@ -10,6 +12,7 @@ export interface User {
   displayName?: string;
   bio?: string;
   settings: UserSettings;
+  globalProjectAccess?: GlobalProjectAccess; // Access to all projects (current and future)
   lastActiveAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +31,7 @@ export interface PublicUser {
   avatar?: string;
   displayName?: string;
   bio?: string;
+  globalProjectAccess?: GlobalProjectAccess;
   lastActiveAt: Date;
   createdAt: Date;
 }

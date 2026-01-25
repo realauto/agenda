@@ -20,6 +20,9 @@ const projectsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
     fastify.mongo.collections.projects,
     fastify.mongo.collections.projectInvites
   );
+  // Set users collection for global access checks
+  projectService.setUsersCollection(fastify.mongo.collections.users);
+
   const feedService = new FeedService(
     fastify.mongo.collections.updates,
     fastify.mongo.collections.users

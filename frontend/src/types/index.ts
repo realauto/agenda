@@ -1,4 +1,6 @@
 // User types
+export type GlobalProjectAccess = 'view' | 'edit';
+
 export interface User {
   _id: string;
   username: string;
@@ -6,6 +8,7 @@ export interface User {
   avatar?: string;
   displayName?: string;
   bio?: string;
+  globalProjectAccess?: GlobalProjectAccess;
   lastActiveAt: string;
   createdAt: string;
 }

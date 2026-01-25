@@ -23,6 +23,7 @@ import { authenticate } from '../middleware/authenticate.js';
 const updatesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   const feedService = new FeedService(fastify.mongo.collections.updates, fastify.mongo.collections.users);
   const projectService = new ProjectService(fastify.mongo.collections.projects);
+  projectService.setUsersCollection(fastify.mongo.collections.users);
   const teamService = new TeamService(fastify.mongo.collections.teams);
   const userService = new UserService(fastify.mongo.collections.users);
 

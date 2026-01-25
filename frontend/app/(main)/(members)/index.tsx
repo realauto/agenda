@@ -9,6 +9,8 @@ import {
   TextInput,
   Modal,
   Pressable,
+  Alert,
+  Platform,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +21,7 @@ import { Loading } from '../../../src/components/ui/Loading';
 import { Avatar } from '../../../src/components/ui/Avatar';
 import { usersApi } from '../../../src/api/users';
 import { projectsApi } from '../../../src/api/projects';
-import type { UserConnection, User, Project } from '../../../src/types';
+import type { UserConnection, User, Project, GlobalProjectAccess } from '../../../src/types';
 
 export default function MembersScreen() {
   const colors = useColors();
@@ -34,6 +36,21 @@ export default function MembersScreen() {
   const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+
+  // Add user modal state
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [addUserSearch, setAddUserSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [userProjects, setUserProjects] = useState<Project[]>([]);
+  const [isLoadingUserProjects, setIsLoadingUserProjects] = useState(false);
+  const [selectedUserForInvite, setSelectedUserForInvite] = useState<User | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [isInviting, setIsInviting] = useState(false);
+
+  // Global access state
+  const [accessMode, setAccessMode] = useState<'project' | 'global'>('project');
+  const [globalAccessLevel, setGlobalAccessLevel] = useState<GlobalProjectAccess>('edit');
 
   useFocusEffect(
     useCallback(() => {
@@ -99,6 +116,131 @@ export default function MembersScreen() {
     }
   };
 
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
+  const handleSearchUsers = async (query: string) => {
+    setAddUserSearch(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { users } = await usersApi.searchUsers(query);
+      setSearchResults(users);
+    } catch (error) {
+      console.error('Search failed:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectUserForInvite = async (user: User) => {
+    setSelectedUserForInvite(user);
+    setIsLoadingUserProjects(true);
+
+    try {
+      // Get projects where current user is owner or editor (can invite)
+      const response = await projectsApi.getAll();
+      const myProjects = response.projects.filter((project) => {
+        // Only show projects where user can invite (owner or editor)
+        // and where the selected user is not already a collaborator
+        const isAlreadyMember =
+          project.ownerId === user._id ||
+          project.collaborators?.some((c) => c.userId === user._id);
+        return !isAlreadyMember;
+      });
+      setUserProjects(myProjects);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+    } finally {
+      setIsLoadingUserProjects(false);
+    }
+  };
+
+  const handleInviteToProject = async () => {
+    if (!selectedUserForInvite || !selectedProjectId) return;
+
+    setIsInviting(true);
+    try {
+      await projectsApi.addCollaborator(selectedProjectId, selectedUserForInvite._id, 'editor');
+      showAlert('Success', `${selectedUserForInvite.displayName || selectedUserForInvite.username} added to project`);
+      setShowAddUserModal(false);
+      setAddUserSearch('');
+      setSearchResults([]);
+      setSelectedUserForInvite(null);
+      setSelectedProjectId(null);
+      loadConnections(); // Refresh connections
+    } catch (error: any) {
+      showAlert('Error', error.response?.data?.message || 'Failed to add user to project');
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleGrantGlobalAccess = async () => {
+    if (!selectedUserForInvite) return;
+
+    setIsInviting(true);
+    try {
+      await usersApi.setGlobalProjectAccess(selectedUserForInvite._id, globalAccessLevel);
+      showAlert(
+        'Success',
+        `${selectedUserForInvite.displayName || selectedUserForInvite.username} now has ${globalAccessLevel === 'edit' ? 'full edit' : 'view-only'} access to all projects`
+      );
+      resetAddUserModal();
+      loadConnections();
+    } catch (error: any) {
+      showAlert('Error', error.response?.data?.message || 'Failed to grant global access');
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleRemoveGlobalAccess = async (user: User) => {
+    const performRemove = async () => {
+      try {
+        await usersApi.setGlobalProjectAccess(user._id, null);
+        showAlert('Success', `Global access removed for ${user.displayName || user.username}`);
+        loadConnections();
+      } catch (error: any) {
+        showAlert('Error', error.response?.data?.message || 'Failed to remove global access');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Remove Global Access\n\nAre you sure you want to remove global project access for ${user.displayName || user.username}?`)) {
+        await performRemove();
+      }
+    } else {
+      Alert.alert(
+        'Remove Global Access',
+        `Are you sure you want to remove global project access for ${user.displayName || user.username}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: performRemove },
+        ]
+      );
+    }
+  };
+
+  const resetAddUserModal = () => {
+    setShowAddUserModal(false);
+    setAddUserSearch('');
+    setSearchResults([]);
+    setSelectedUserForInvite(null);
+    setSelectedProjectId(null);
+    setAccessMode('project');
+    setGlobalAccessLevel('edit');
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['left', 'right']}>
@@ -123,21 +265,29 @@ export default function MembersScreen() {
       >
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Feather name="search" size={18} color={colors.textMuted} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search members..."
-              placeholderTextColor={colors.textMuted}
-              value={searchQuery}
-              onChangeText={handleSearch}
-              autoCapitalize="none"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => handleSearch('')}>
-                <Feather name="x" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
-            )}
+          <View style={styles.searchRow}>
+            <View style={[styles.searchBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Feather name="search" size={18} color={colors.textMuted} />
+              <TextInput
+                style={[styles.searchInput, { color: colors.text }]}
+                placeholder="Search members..."
+                placeholderTextColor={colors.textMuted}
+                value={searchQuery}
+                onChangeText={handleSearch}
+                autoCapitalize="none"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => handleSearch('')}>
+                  <Feather name="x" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.addUserButton, { backgroundColor: colors.primary }]}
+              onPress={() => setShowAddUserModal(true)}
+            >
+              <Feather name="user-plus" size={20} color="#fff" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -166,9 +316,19 @@ export default function MembersScreen() {
                   size={48}
                 />
                 <View style={styles.memberInfo}>
-                  <Text style={[styles.memberName, { color: colors.text }]}>
-                    {connection.user.displayName || connection.user.username}
-                  </Text>
+                  <View style={styles.memberNameRow}>
+                    <Text style={[styles.memberName, { color: colors.text }]}>
+                      {connection.user.displayName || connection.user.username}
+                    </Text>
+                    {connection.user.globalProjectAccess && (
+                      <View style={[styles.globalAccessBadge, { backgroundColor: colors.primary + '20' }]}>
+                        <Feather name="globe" size={10} color={colors.primary} />
+                        <Text style={[styles.globalAccessBadgeText, { color: colors.primary }]}>
+                          {connection.user.globalProjectAccess === 'edit' ? 'Full' : 'View'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={[styles.memberUsername, { color: colors.textMuted }]}>
                     @{connection.user.username}
                   </Text>
@@ -245,6 +405,315 @@ export default function MembersScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Add User Modal */}
+      <Modal
+        visible={showAddUserModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={resetAddUserModal}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              {selectedUserForInvite ? 'Select Project' : 'Add User'}
+            </Text>
+            <TouchableOpacity onPress={resetAddUserModal}>
+              <Feather name="x" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {!selectedUserForInvite ? (
+              <>
+                {/* Search for users */}
+                <View style={styles.addUserSearchContainer}>
+                  <Text style={[styles.addUserLabel, { color: colors.text }]}>
+                    Search for a user to add to a project
+                  </Text>
+                  <View style={[styles.addUserSearchBar, { backgroundColor: colors.backgroundSecondary }]}>
+                    <Feather name="search" size={18} color={colors.textMuted} />
+                    <TextInput
+                      style={[styles.addUserSearchInput, { color: colors.text }]}
+                      placeholder="Search by name, username, or email..."
+                      placeholderTextColor={colors.textMuted}
+                      value={addUserSearch}
+                      onChangeText={handleSearchUsers}
+                      autoCapitalize="none"
+                      autoFocus
+                    />
+                    {addUserSearch.length > 0 && (
+                      <TouchableOpacity onPress={() => handleSearchUsers('')}>
+                        <Feather name="x" size={18} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {/* Search Results */}
+                {addUserSearch.length >= 2 && (
+                  <View style={styles.addUserResults}>
+                    {isSearching ? (
+                      <Text style={[styles.searchingText, { color: colors.textMuted }]}>Searching...</Text>
+                    ) : searchResults.length > 0 ? (
+                      searchResults.map((user) => (
+                        <TouchableOpacity
+                          key={user._id}
+                          style={[styles.addUserResultRow, { borderBottomColor: colors.borderLight }]}
+                          onPress={() => handleSelectUserForInvite(user)}
+                        >
+                          <Avatar
+                            uri={user.avatar}
+                            name={user.displayName || user.username}
+                            size={44}
+                          />
+                          <View style={styles.addUserResultInfo}>
+                            <Text style={[styles.addUserResultName, { color: colors.text }]}>
+                              {user.displayName || user.username}
+                            </Text>
+                            <Text style={[styles.addUserResultUsername, { color: colors.textMuted }]}>
+                              @{user.username}
+                            </Text>
+                          </View>
+                          <Feather name="chevron-right" size={20} color={colors.textMuted} />
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <Text style={[styles.noResultsText, { color: colors.textMuted }]}>
+                        No users found
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Selected user header */}
+                <View style={[styles.selectedUserHeader, { borderBottomColor: colors.border }]}>
+                  <TouchableOpacity onPress={() => setSelectedUserForInvite(null)} style={styles.backButton}>
+                    <Feather name="arrow-left" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                  <Avatar
+                    uri={selectedUserForInvite.avatar}
+                    name={selectedUserForInvite.displayName || selectedUserForInvite.username}
+                    size={40}
+                  />
+                  <View style={styles.selectedUserInfo}>
+                    <Text style={[styles.selectedUserName, { color: colors.text }]}>
+                      {selectedUserForInvite.displayName || selectedUserForInvite.username}
+                    </Text>
+                    <Text style={[styles.selectedUserUsername, { color: colors.textMuted }]}>
+                      @{selectedUserForInvite.username}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Access mode toggle */}
+                <View style={styles.accessModeContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.accessModeOption,
+                      { borderColor: colors.border },
+                      accessMode === 'project' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                    ]}
+                    onPress={() => setAccessMode('project')}
+                  >
+                    <Feather
+                      name="folder"
+                      size={18}
+                      color={accessMode === 'project' ? colors.primary : colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.accessModeText,
+                        { color: accessMode === 'project' ? colors.primary : colors.textSecondary },
+                      ]}
+                    >
+                      Add to Project
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.accessModeOption,
+                      { borderColor: colors.border },
+                      accessMode === 'global' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                    ]}
+                    onPress={() => setAccessMode('global')}
+                  >
+                    <Feather
+                      name="globe"
+                      size={18}
+                      color={accessMode === 'global' ? colors.primary : colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.accessModeText,
+                        { color: accessMode === 'global' ? colors.primary : colors.textSecondary },
+                      ]}
+                    >
+                      Full Access
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {accessMode === 'project' ? (
+                  <>
+                    {/* Project selection */}
+                    <Text style={[styles.selectProjectLabel, { color: colors.text }]}>
+                      Select a project to add this user to:
+                    </Text>
+
+                    {isLoadingUserProjects ? (
+                      <Text style={[styles.searchingText, { color: colors.textMuted }]}>Loading projects...</Text>
+                    ) : userProjects.length > 0 ? (
+                      <View style={styles.projectsList}>
+                        {userProjects.map((project) => (
+                          <TouchableOpacity
+                            key={project._id}
+                            style={[
+                              styles.projectSelectRow,
+                              { borderColor: colors.border },
+                              selectedProjectId === project._id && { borderColor: colors.primary, backgroundColor: colors.primary + '10' },
+                            ]}
+                            onPress={() => setSelectedProjectId(project._id)}
+                          >
+                            <View style={[styles.projectColorDot, { backgroundColor: project.color || colors.primary }]} />
+                            <Text style={[styles.projectSelectName, { color: colors.text }]} numberOfLines={1}>
+                              {project.name}
+                            </Text>
+                            {selectedProjectId === project._id && (
+                              <Feather name="check" size={20} color={colors.primary} />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : (
+                      <View style={styles.noProjectsContainer}>
+                        <Feather name="folder" size={48} color={colors.textMuted} />
+                        <Text style={[styles.noProjectsText, { color: colors.textMuted }]}>
+                          No available projects
+                        </Text>
+                        <Text style={[styles.noProjectsSubtext, { color: colors.textMuted }]}>
+                          This user is already a member of all your projects
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Add button */}
+                    {userProjects.length > 0 && (
+                      <TouchableOpacity
+                        style={[
+                          styles.inviteButton,
+                          { backgroundColor: colors.primary },
+                          (!selectedProjectId || isInviting) && { opacity: 0.5 },
+                        ]}
+                        onPress={handleInviteToProject}
+                        disabled={!selectedProjectId || isInviting}
+                      >
+                        <Text style={styles.inviteButtonText}>
+                          {isInviting ? 'Adding...' : 'Add to Project'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Global access section */}
+                    <View style={[styles.globalAccessInfo, { backgroundColor: colors.backgroundSecondary }]}>
+                      <Feather name="info" size={18} color={colors.primary} />
+                      <Text style={[styles.globalAccessInfoText, { color: colors.textSecondary }]}>
+                        Full access gives this user access to all current and future projects.
+                      </Text>
+                    </View>
+
+                    <Text style={[styles.selectProjectLabel, { color: colors.text }]}>
+                      Select access level:
+                    </Text>
+
+                    <View style={styles.accessLevelContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.accessLevelOption,
+                          { borderColor: colors.border },
+                          globalAccessLevel === 'edit' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                        ]}
+                        onPress={() => setGlobalAccessLevel('edit')}
+                      >
+                        <Feather
+                          name="edit-2"
+                          size={20}
+                          color={globalAccessLevel === 'edit' ? colors.primary : colors.textSecondary}
+                        />
+                        <View style={styles.accessLevelInfo}>
+                          <Text
+                            style={[
+                              styles.accessLevelTitle,
+                              { color: globalAccessLevel === 'edit' ? colors.primary : colors.text },
+                            ]}
+                          >
+                            Full Edit Access
+                          </Text>
+                          <Text style={[styles.accessLevelDesc, { color: colors.textMuted }]}>
+                            Can view and edit all projects
+                          </Text>
+                        </View>
+                        {globalAccessLevel === 'edit' && (
+                          <Feather name="check" size={20} color={colors.primary} />
+                        )}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.accessLevelOption,
+                          { borderColor: colors.border },
+                          globalAccessLevel === 'view' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                        ]}
+                        onPress={() => setGlobalAccessLevel('view')}
+                      >
+                        <Feather
+                          name="eye"
+                          size={20}
+                          color={globalAccessLevel === 'view' ? colors.primary : colors.textSecondary}
+                        />
+                        <View style={styles.accessLevelInfo}>
+                          <Text
+                            style={[
+                              styles.accessLevelTitle,
+                              { color: globalAccessLevel === 'view' ? colors.primary : colors.text },
+                            ]}
+                          >
+                            View Only Access
+                          </Text>
+                          <Text style={[styles.accessLevelDesc, { color: colors.textMuted }]}>
+                            Can view all projects but not edit
+                          </Text>
+                        </View>
+                        {globalAccessLevel === 'view' && (
+                          <Feather name="check" size={20} color={colors.primary} />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.inviteButton,
+                        { backgroundColor: colors.primary },
+                        isInviting && { opacity: 0.5 },
+                      ]}
+                      onPress={handleGrantGlobalAccess}
+                      disabled={isInviting}
+                    >
+                      <Text style={styles.inviteButtonText}>
+                        {isInviting ? 'Granting Access...' : 'Grant Full Access'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -265,7 +734,20 @@ const styles = StyleSheet.create({
   searchContainer: {
     padding: 16,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  addUserButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -293,10 +775,15 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
   memberName: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 2,
   },
   memberUsername: {
     fontSize: 14,
@@ -369,5 +856,187 @@ const styles = StyleSheet.create({
   projectDescription: {
     fontSize: 14,
     marginTop: 2,
+  },
+  addUserSearchContainer: {
+    marginBottom: 16,
+  },
+  addUserLabel: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  addUserSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+  },
+  addUserSearchInput: {
+    flex: 1,
+    fontSize: 16,
+  },
+  addUserResults: {
+    marginTop: 8,
+  },
+  addUserResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  addUserResultInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  addUserResultName: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  addUserResultUsername: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  searchingText: {
+    textAlign: 'center',
+    padding: 16,
+    fontSize: 14,
+  },
+  noResultsText: {
+    textAlign: 'center',
+    padding: 16,
+    fontSize: 14,
+  },
+  selectedUserHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 16,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  selectedUserInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  selectedUserName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  selectedUserUsername: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  selectProjectLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  projectsList: {
+    gap: 8,
+  },
+  projectSelectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  projectColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  projectSelectName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  noProjectsSubtext: {
+    fontSize: 13,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  inviteButton: {
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  inviteButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  accessModeContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  accessModeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 8,
+  },
+  accessModeText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  globalAccessInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 20,
+    gap: 10,
+  },
+  globalAccessInfoText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  accessLevelContainer: {
+    gap: 10,
+  },
+  accessLevelOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 14,
+  },
+  accessLevelInfo: {
+    flex: 1,
+  },
+  accessLevelTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  accessLevelDesc: {
+    fontSize: 13,
+  },
+  globalAccessBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  globalAccessBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

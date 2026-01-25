@@ -1,6 +1,6 @@
 import { Collection, ObjectId } from 'mongodb';
 import type { Project } from '../types/index.js';
-import type { User, PublicUser } from '../types/index.js';
+import type { User, PublicUser, GlobalProjectAccess } from '../types/index.js';
 import type { CreateUserInput, UpdateUserInput } from '../models/User.js';
 import { hashPassword } from '../utils/index.js';
 
@@ -123,9 +123,50 @@ export class UserService {
       avatar: user.avatar,
       displayName: user.displayName,
       bio: user.bio,
+      globalProjectAccess: user.globalProjectAccess,
       lastActiveAt: user.lastActiveAt,
       createdAt: user.createdAt,
     };
+  }
+
+  // Set global project access for a user
+  async setGlobalProjectAccess(
+    userId: string,
+    access: GlobalProjectAccess | null
+  ): Promise<User | null> {
+    if (access === null) {
+      // Remove the field entirely
+      const result = await this.collection.findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        {
+          $unset: { globalProjectAccess: '' },
+          $set: { updatedAt: new Date() },
+        },
+        { returnDocument: 'after' }
+      );
+      return result;
+    }
+
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          globalProjectAccess: access,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    );
+
+    return result;
+  }
+
+  // Get all users with global project access
+  async getUsersWithGlobalAccess(): Promise<PublicUser[]> {
+    const users = await this.collection
+      .find({ globalProjectAccess: { $in: ['view', 'edit'] as GlobalProjectAccess[] } })
+      .toArray();
+    return users.map((u) => this.toPublic(u));
   }
 
   // Search users by username, email, or displayName

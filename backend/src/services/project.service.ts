@@ -1,14 +1,20 @@
 import { Collection, ObjectId } from 'mongodb';
-import type { Project, ProjectRole, ProjectInvite, ProjectInviteStatus, AllUsersAccess } from '../types/index.js';
+import type { Project, ProjectRole, ProjectInvite, ProjectInviteStatus, AllUsersAccess, User, GlobalProjectAccess } from '../types/index.js';
 import type { CreateProjectInput, UpdateProjectInput } from '../models/Project.js';
 import { generateSlug } from '../utils/index.js';
 import crypto from 'crypto';
 
 export class ProjectService {
+  private usersCollection?: Collection<User>;
+
   constructor(
     private collection: Collection<Project>,
     private inviteCollection?: Collection<ProjectInvite>
   ) {}
+
+  setUsersCollection(usersCollection: Collection<User>) {
+    this.usersCollection = usersCollection;
+  }
 
   async create(input: CreateProjectInput, ownerId: string): Promise<Project> {
     const now = new Date();
@@ -42,8 +48,17 @@ export class ProjectService {
     return this.collection.findOne({ slug, ownerId: new ObjectId(ownerId) });
   }
 
-  // Get all projects where user is owner, collaborator, or allUsersAccess is set
+  // Get all projects where user is owner, collaborator, allUsersAccess is set, or user has global access
   async findByUserId(userId: string): Promise<Project[]> {
+    // Check if user has global project access
+    if (this.usersCollection) {
+      const user = await this.usersCollection.findOne({ _id: new ObjectId(userId) });
+      if (user?.globalProjectAccess) {
+        // User has global access - return all projects
+        return this.collection.find({}).sort({ updatedAt: -1 }).toArray();
+      }
+    }
+
     const userObjectId = new ObjectId(userId);
     return this.collection
       .find({
@@ -109,6 +124,17 @@ export class ProjectService {
     );
     if (collaborator) {
       return collaborator.role;
+    }
+
+    // Check for global project access
+    if (this.usersCollection) {
+      const user = await this.usersCollection.findOne({ _id: new ObjectId(userId) });
+      if (user?.globalProjectAccess === 'edit') {
+        return 'editor';
+      }
+      if (user?.globalProjectAccess === 'view') {
+        return 'viewer';
+      }
     }
 
     // All-users access check (for authenticated users)

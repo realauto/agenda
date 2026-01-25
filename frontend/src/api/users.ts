@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { User, UserSettings, UserConnection } from '../types';
+import type { User, UserSettings, UserConnection, GlobalProjectAccess } from '../types';
 
 export interface UpdateUserInput {
   displayName?: string;
@@ -40,6 +40,24 @@ export const usersApi = {
   // Get connected users (users who share projects with current user)
   getConnections: async (): Promise<{ connections: UserConnection[] }> => {
     const response = await apiClient.get<{ connections: UserConnection[] }>('/users/connections');
+    return response.data;
+  },
+
+  // Set global project access for a user
+  setGlobalProjectAccess: async (
+    userId: string,
+    access: GlobalProjectAccess | null
+  ): Promise<{ user: User }> => {
+    const response = await apiClient.put<{ user: User }>(
+      `/users/${userId}/global-access`,
+      { access }
+    );
+    return response.data;
+  },
+
+  // Get users with global project access
+  getUsersWithGlobalAccess: async (): Promise<{ users: User[] }> => {
+    const response = await apiClient.get<{ users: User[] }>('/users/global-access/list');
     return response.data;
   },
 };

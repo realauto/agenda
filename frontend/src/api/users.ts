@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { User, UserSettings, UserConnection, GlobalProjectAccess } from '../types';
+import type { User, UserSettings, UserConnection, GlobalProjectAccess, MemberStatus } from '../types';
 
 export interface UpdateUserInput {
   displayName?: string;
@@ -71,6 +71,47 @@ export const usersApi = {
       temporaryPassword: string;
       message: string;
     }>('/users/create-by-email', { email, globalAccess });
+    return response.data;
+  },
+
+  // Get status history for a user
+  getStatuses: async (
+    userId: string,
+    limit?: number
+  ): Promise<{ statuses: MemberStatus[] }> => {
+    const params = limit ? { limit } : {};
+    const response = await apiClient.get<{ statuses: MemberStatus[] }>(
+      `/users/${userId}/statuses`,
+      { params }
+    );
+    return response.data;
+  },
+
+  // Add a status for a user
+  addStatus: async (
+    userId: string,
+    content: string
+  ): Promise<{ status: MemberStatus }> => {
+    const response = await apiClient.post<{ status: MemberStatus }>(
+      `/users/${userId}/statuses`,
+      { content }
+    );
+    return response.data;
+  },
+
+  // Get latest statuses for all users
+  getLatestStatuses: async (): Promise<{ statuses: Record<string, MemberStatus> }> => {
+    const response = await apiClient.get<{ statuses: Record<string, MemberStatus> }>(
+      '/users/statuses/latest'
+    );
+    return response.data;
+  },
+
+  // Delete a status
+  deleteStatus: async (statusId: string): Promise<{ success: boolean }> => {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/users/statuses/${statusId}`
+    );
     return response.data;
   },
 };

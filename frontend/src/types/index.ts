@@ -199,6 +199,17 @@ export interface UserConnection {
   sharedProjectCount: number;
 }
 
+// Member Status types
+export interface MemberStatus {
+  _id: string;
+  userId: string;
+  authorId: string;
+  author?: User;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Auth types
 export interface AuthResponse {
   user: User;

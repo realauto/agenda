@@ -183,6 +183,16 @@ export interface Invite {
   createdAt: Date;
 }
 
+// Member Status types
+export interface MemberStatus {
+  _id: ObjectId;
+  userId: ObjectId; // The member this status is about
+  authorId: ObjectId; // Who wrote this status
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // JWT Payload
 export interface JwtPayload {
   userId: string;

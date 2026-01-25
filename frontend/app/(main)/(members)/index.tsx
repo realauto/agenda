@@ -21,7 +21,7 @@ import { Loading } from '../../../src/components/ui/Loading';
 import { Avatar } from '../../../src/components/ui/Avatar';
 import { usersApi } from '../../../src/api/users';
 import { projectsApi } from '../../../src/api/projects';
-import type { UserConnection, User, Project, GlobalProjectAccess } from '../../../src/types';
+import type { UserConnection, User, Project, GlobalProjectAccess, MemberStatus } from '../../../src/types';
 
 export default function MembersScreen() {
   const colors = useColors();
@@ -60,6 +60,15 @@ export default function MembersScreen() {
   const [createdUserPassword, setCreatedUserPassword] = useState<string | null>(null);
   const [createdUser, setCreatedUser] = useState<User | null>(null);
 
+  // Status state
+  const [latestStatuses, setLatestStatuses] = useState<Record<string, MemberStatus>>({});
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusUser, setStatusUser] = useState<User | null>(null);
+  const [statusHistory, setStatusHistory] = useState<MemberStatus[]>([]);
+  const [isLoadingStatuses, setIsLoadingStatuses] = useState(false);
+  const [newStatusContent, setNewStatusContent] = useState('');
+  const [isAddingStatus, setIsAddingStatus] = useState(false);
+
   useFocusEffect(
     useCallback(() => {
       loadConnections();
@@ -68,9 +77,13 @@ export default function MembersScreen() {
 
   const loadConnections = async () => {
     try {
-      const response = await usersApi.getConnections();
-      setConnections(response.connections);
-      setFilteredConnections(response.connections);
+      const [connectionsResponse, statusesResponse] = await Promise.all([
+        usersApi.getConnections(),
+        usersApi.getLatestStatuses(),
+      ]);
+      setConnections(connectionsResponse.connections);
+      setFilteredConnections(connectionsResponse.connections);
+      setLatestStatuses(statusesResponse.statuses);
     } catch (error) {
       console.error('Failed to load connections:', error);
     } finally {
@@ -282,6 +295,89 @@ export default function MembersScreen() {
     setCreatedUser(null);
   };
 
+  const handleViewStatus = async (user: User) => {
+    setStatusUser(user);
+    setShowStatusModal(true);
+    setIsLoadingStatuses(true);
+    setNewStatusContent('');
+
+    try {
+      const response = await usersApi.getStatuses(user._id);
+      setStatusHistory(response.statuses);
+    } catch (error) {
+      console.error('Failed to load statuses:', error);
+    } finally {
+      setIsLoadingStatuses(false);
+    }
+  };
+
+  const handleAddStatus = async () => {
+    if (!statusUser || !newStatusContent.trim()) return;
+
+    setIsAddingStatus(true);
+    try {
+      const response = await usersApi.addStatus(statusUser._id, newStatusContent.trim());
+      setStatusHistory([response.status, ...statusHistory]);
+      setNewStatusContent('');
+      // Update latest statuses
+      setLatestStatuses({
+        ...latestStatuses,
+        [statusUser._id]: response.status,
+      });
+    } catch (error: any) {
+      showAlert('Error', error.response?.data?.message || 'Failed to add status');
+    } finally {
+      setIsAddingStatus(false);
+    }
+  };
+
+  const handleDeleteStatus = async (statusId: string) => {
+    const performDelete = async () => {
+      try {
+        await usersApi.deleteStatus(statusId);
+        setStatusHistory(statusHistory.filter((s) => s._id !== statusId));
+        // If it was the latest status, refresh
+        if (statusUser && latestStatuses[statusUser._id]?._id === statusId) {
+          const newLatest = statusHistory.find((s) => s._id !== statusId);
+          if (newLatest) {
+            setLatestStatuses({ ...latestStatuses, [statusUser._id]: newLatest });
+          } else {
+            const { [statusUser._id]: _, ...rest } = latestStatuses;
+            setLatestStatuses(rest);
+          }
+        }
+      } catch (error: any) {
+        showAlert('Error', error.response?.data?.message || 'Failed to delete status');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete this status?')) {
+        await performDelete();
+      }
+    } else {
+      Alert.alert('Delete Status', 'Are you sure you want to delete this status?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: performDelete },
+      ]);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['left', 'right']}>
@@ -344,47 +440,53 @@ export default function MembersScreen() {
           />
         ) : (
           <View style={styles.membersList}>
-            {filteredConnections.map((connection) => (
-              <TouchableOpacity
-                key={connection.user._id}
-                style={[styles.memberCard, { backgroundColor: colors.background, borderColor: colors.border }]}
-                onPress={() => handleViewSharedProjects(connection.user)}
-                activeOpacity={0.7}
-              >
-                <Avatar
-                  uri={connection.user.avatar}
-                  name={connection.user.displayName || connection.user.username}
-                  size={48}
-                />
-                <View style={styles.memberInfo}>
-                  <View style={styles.memberNameRow}>
-                    <Text style={[styles.memberName, { color: colors.text }]}>
-                      {connection.user.displayName || connection.user.username}
-                    </Text>
-                    {connection.user.globalProjectAccess && (
-                      <View style={[styles.globalAccessBadge, { backgroundColor: colors.primary + '20' }]}>
-                        <Feather name="globe" size={10} color={colors.primary} />
-                        <Text style={[styles.globalAccessBadgeText, { color: colors.primary }]}>
-                          {connection.user.globalProjectAccess === 'edit' ? 'Full' : 'View'}
+            {filteredConnections.map((connection) => {
+              const latestStatus = latestStatuses[connection.user._id];
+              return (
+                <TouchableOpacity
+                  key={connection.user._id}
+                  style={[styles.memberCard, { backgroundColor: colors.background, borderColor: colors.border }]}
+                  onPress={() => handleViewStatus(connection.user)}
+                  activeOpacity={0.7}
+                >
+                  <Avatar
+                    uri={connection.user.avatar}
+                    name={connection.user.displayName || connection.user.username}
+                    size={48}
+                  />
+                  <View style={styles.memberInfo}>
+                    <View style={styles.memberNameRow}>
+                      <Text style={[styles.memberName, { color: colors.text }]}>
+                        {connection.user.displayName || connection.user.username}
+                      </Text>
+                      {connection.user.globalProjectAccess && (
+                        <View style={[styles.globalAccessBadge, { backgroundColor: colors.primary + '20' }]}>
+                          <Feather name="globe" size={10} color={colors.primary} />
+                          <Text style={[styles.globalAccessBadgeText, { color: colors.primary }]}>
+                            {connection.user.globalProjectAccess === 'edit' ? 'Full' : 'View'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    {latestStatus ? (
+                      <View style={styles.statusPreview}>
+                        <Text style={[styles.statusPreviewText, { color: colors.textSecondary }]} numberOfLines={1}>
+                          {latestStatus.content}
+                        </Text>
+                        <Text style={[styles.statusPreviewTime, { color: colors.textMuted }]}>
+                          {formatDate(latestStatus.createdAt)}
                         </Text>
                       </View>
+                    ) : (
+                      <Text style={[styles.memberUsername, { color: colors.textMuted }]}>
+                        No status yet
+                      </Text>
                     )}
                   </View>
-                  <Text style={[styles.memberUsername, { color: colors.textMuted }]}>
-                    @{connection.user.username}
-                  </Text>
-                </View>
-                <View style={styles.memberStats}>
-                  <View style={[styles.statBadge, { backgroundColor: colors.backgroundSecondary }]}>
-                    <Feather name="folder" size={14} color={colors.primary} />
-                    <Text style={[styles.statText, { color: colors.primary }]}>
-                      {connection.sharedProjectCount}
-                    </Text>
-                  </View>
                   <Feather name="chevron-right" size={20} color={colors.textMuted} />
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -999,6 +1101,109 @@ export default function MembersScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Status Modal */}
+      <Modal
+        visible={showStatusModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowStatusModal(false)}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              {statusUser?.displayName || statusUser?.username}'s Status
+            </Text>
+            <TouchableOpacity onPress={() => setShowStatusModal(false)}>
+              <Feather name="x" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
+            {/* Add Status Input */}
+            <View style={[styles.addStatusContainer, { backgroundColor: colors.backgroundSecondary }]}>
+              <Avatar
+                uri={statusUser?.avatar}
+                name={statusUser?.displayName || statusUser?.username || ''}
+                size={36}
+              />
+              <TextInput
+                style={[styles.statusInput, { color: colors.text }]}
+                placeholder="Add a status or task..."
+                placeholderTextColor={colors.textMuted}
+                value={newStatusContent}
+                onChangeText={setNewStatusContent}
+                multiline
+                maxLength={1000}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.addStatusButton,
+                  { backgroundColor: colors.primary },
+                  (!newStatusContent.trim() || isAddingStatus) && { opacity: 0.5 },
+                ]}
+                onPress={handleAddStatus}
+                disabled={!newStatusContent.trim() || isAddingStatus}
+              >
+                <Feather name="send" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Status History */}
+            <Text style={[styles.statusHistoryTitle, { color: colors.text }]}>
+              Status History
+            </Text>
+
+            {isLoadingStatuses ? (
+              <Loading message="Loading statuses..." />
+            ) : statusHistory.length === 0 ? (
+              <View style={styles.emptyStatusContainer}>
+                <Feather name="message-circle" size={48} color={colors.textMuted} />
+                <Text style={[styles.emptyStatusText, { color: colors.textMuted }]}>
+                  No status updates yet
+                </Text>
+                <Text style={[styles.emptyStatusSubtext, { color: colors.textMuted }]}>
+                  Add the first status above
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.statusList}>
+                {statusHistory.map((status) => (
+                  <View
+                    key={status._id}
+                    style={[styles.statusItem, { borderBottomColor: colors.borderLight }]}
+                  >
+                    <View style={styles.statusHeader}>
+                      <Avatar
+                        uri={status.author?.avatar}
+                        name={status.author?.displayName || status.author?.username || ''}
+                        size={32}
+                      />
+                      <View style={styles.statusAuthorInfo}>
+                        <Text style={[styles.statusAuthorName, { color: colors.text }]}>
+                          {status.author?.displayName || status.author?.username}
+                        </Text>
+                        <Text style={[styles.statusTime, { color: colors.textMuted }]}>
+                          {formatDate(status.createdAt)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.statusDeleteButton}
+                        onPress={() => handleDeleteStatus(status._id)}
+                      >
+                        <Feather name="trash-2" size={16} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.statusContent, { color: colors.text }]}>
+                      {status.content}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1129,6 +1334,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
+    marginRight: 12,
   },
   projectInfo: {
     flex: 1,
@@ -1229,12 +1435,6 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 10,
     borderWidth: 1,
-  },
-  projectColorDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
   },
   projectSelectName: {
     flex: 1,
@@ -1434,5 +1634,88 @@ const styles = StyleSheet.create({
   accessGrantedText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  statusPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  statusPreviewText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  statusPreviewTime: {
+    fontSize: 11,
+  },
+  addStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    gap: 12,
+  },
+  statusInput: {
+    flex: 1,
+    fontSize: 15,
+    maxHeight: 100,
+    paddingTop: 8,
+  },
+  addStatusButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusHistoryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  emptyStatusContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStatusText: {
+    fontSize: 16,
+    marginTop: 12,
+  },
+  emptyStatusSubtext: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  statusList: {
+    gap: 0,
+  },
+  statusItem: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusAuthorInfo: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  statusAuthorName: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  statusTime: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  statusDeleteButton: {
+    padding: 8,
+  },
+  statusContent: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginLeft: 42,
   },
 });

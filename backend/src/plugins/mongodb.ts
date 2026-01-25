@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 import { MongoClient, Db, Collection } from 'mongodb';
 import { databaseConfig } from '../config/index.js';
-import type { User, Team, Project, Update, Invite, ProjectInvite } from '../types/index.js';
+import type { User, Team, Project, Update, Invite, ProjectInvite, MemberStatus } from '../types/index.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -16,6 +16,7 @@ declare module 'fastify' {
         updates: Collection<Update>;
         invites: Collection<Invite>;
         projectInvites: Collection<ProjectInvite>;
+        memberStatuses: Collection<MemberStatus>;
       };
     };
   }
@@ -38,6 +39,7 @@ const mongoPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       updates: db.collection<Update>('updates'),
       invites: db.collection<Invite>('invites'),
       projectInvites: db.collection<ProjectInvite>('projectInvites'),
+      memberStatuses: db.collection<MemberStatus>('memberStatuses'),
     };
 
     // Create indexes
@@ -57,6 +59,8 @@ const mongoPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
     await collections.projectInvites.createIndex({ token: 1 }, { unique: true });
     await collections.projectInvites.createIndex({ email: 1, projectId: 1 });
     await collections.projectInvites.createIndex({ projectId: 1 });
+    await collections.memberStatuses.createIndex({ userId: 1, createdAt: -1 });
+    await collections.memberStatuses.createIndex({ authorId: 1 });
 
     fastify.decorate('mongo', {
       client,

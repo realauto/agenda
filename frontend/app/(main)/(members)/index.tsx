@@ -52,6 +52,14 @@ export default function MembersScreen() {
   const [accessMode, setAccessMode] = useState<'project' | 'global'>('project');
   const [globalAccessLevel, setGlobalAccessLevel] = useState<GlobalProjectAccess>('edit');
 
+  // Add by email state
+  const [addUserTab, setAddUserTab] = useState<'search' | 'email'>('search');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserGlobalAccess, setNewUserGlobalAccess] = useState<GlobalProjectAccess | null>('edit');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [createdUserPassword, setCreatedUserPassword] = useState<string | null>(null);
+  const [createdUser, setCreatedUser] = useState<User | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       loadConnections();
@@ -231,6 +239,34 @@ export default function MembersScreen() {
     }
   };
 
+  const handleCreateUserByEmail = async () => {
+    if (!newUserEmail.trim()) {
+      showAlert('Error', 'Please enter an email address');
+      return;
+    }
+
+    setIsCreatingUser(true);
+    try {
+      const result = await usersApi.createByEmail(newUserEmail.trim(), newUserGlobalAccess);
+      setCreatedUser(result.user);
+      setCreatedUserPassword(result.temporaryPassword);
+      loadConnections();
+    } catch (error: any) {
+      showAlert('Error', error.response?.data?.message || 'Failed to create user');
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    if (Platform.OS === 'web') {
+      navigator.clipboard.writeText(text);
+      showAlert('Copied', 'Copied to clipboard');
+    } else {
+      showAlert('Credentials', text);
+    }
+  };
+
   const resetAddUserModal = () => {
     setShowAddUserModal(false);
     setAddUserSearch('');
@@ -239,6 +275,11 @@ export default function MembersScreen() {
     setSelectedProjectId(null);
     setAccessMode('project');
     setGlobalAccessLevel('edit');
+    setAddUserTab('search');
+    setNewUserEmail('');
+    setNewUserGlobalAccess('edit');
+    setCreatedUserPassword(null);
+    setCreatedUser(null);
   };
 
   if (isLoading) {
@@ -424,66 +465,310 @@ export default function MembersScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
-            {!selectedUserForInvite ? (
-              <>
-                {/* Search for users */}
-                <View style={styles.addUserSearchContainer}>
-                  <Text style={[styles.addUserLabel, { color: colors.text }]}>
-                    Search for a user to add to a project
-                  </Text>
-                  <View style={[styles.addUserSearchBar, { backgroundColor: colors.backgroundSecondary }]}>
-                    <Feather name="search" size={18} color={colors.textMuted} />
-                    <TextInput
-                      style={[styles.addUserSearchInput, { color: colors.text }]}
-                      placeholder="Search by name, username, or email..."
-                      placeholderTextColor={colors.textMuted}
-                      value={addUserSearch}
-                      onChangeText={handleSearchUsers}
-                      autoCapitalize="none"
-                      autoFocus
-                    />
-                    {addUserSearch.length > 0 && (
-                      <TouchableOpacity onPress={() => handleSearchUsers('')}>
-                        <Feather name="x" size={18} color={colors.textMuted} />
+            {createdUserPassword && createdUser ? (
+              // Show created user credentials
+              <View style={styles.createdUserContainer}>
+                <View style={[styles.successIcon, { backgroundColor: colors.success + '20' }]}>
+                  <Feather name="check-circle" size={48} color={colors.success} />
+                </View>
+                <Text style={[styles.createdUserTitle, { color: colors.text }]}>
+                  User Created Successfully
+                </Text>
+                <Text style={[styles.createdUserSubtitle, { color: colors.textSecondary }]}>
+                  Share these credentials with the user
+                </Text>
+
+                <View style={[styles.credentialsBox, { backgroundColor: colors.backgroundSecondary }]}>
+                  <View style={styles.credentialRow}>
+                    <Text style={[styles.credentialLabel, { color: colors.textMuted }]}>Email</Text>
+                    <View style={styles.credentialValueRow}>
+                      <Text style={[styles.credentialValue, { color: colors.text }]}>{createdUser.email}</Text>
+                      <TouchableOpacity onPress={() => copyToClipboard(createdUser.email)}>
+                        <Feather name="copy" size={18} color={colors.primary} />
                       </TouchableOpacity>
-                    )}
+                    </View>
+                  </View>
+                  <View style={[styles.credentialDivider, { backgroundColor: colors.border }]} />
+                  <View style={styles.credentialRow}>
+                    <Text style={[styles.credentialLabel, { color: colors.textMuted }]}>Password</Text>
+                    <View style={styles.credentialValueRow}>
+                      <Text style={[styles.credentialValue, { color: colors.text }]}>{createdUserPassword}</Text>
+                      <TouchableOpacity onPress={() => copyToClipboard(createdUserPassword)}>
+                        <Feather name="copy" size={18} color={colors.primary} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
 
-                {/* Search Results */}
-                {addUserSearch.length >= 2 && (
-                  <View style={styles.addUserResults}>
-                    {isSearching ? (
-                      <Text style={[styles.searchingText, { color: colors.textMuted }]}>Searching...</Text>
-                    ) : searchResults.length > 0 ? (
-                      searchResults.map((user) => (
+                <TouchableOpacity
+                  style={[styles.copyAllButton, { borderColor: colors.primary }]}
+                  onPress={() => copyToClipboard(`Email: ${createdUser.email}\nPassword: ${createdUserPassword}`)}
+                >
+                  <Feather name="copy" size={18} color={colors.primary} />
+                  <Text style={[styles.copyAllButtonText, { color: colors.primary }]}>Copy All</Text>
+                </TouchableOpacity>
+
+                {newUserGlobalAccess && (
+                  <View style={[styles.accessGrantedNote, { backgroundColor: colors.primary + '15' }]}>
+                    <Feather name="globe" size={16} color={colors.primary} />
+                    <Text style={[styles.accessGrantedText, { color: colors.primary }]}>
+                      Full {newUserGlobalAccess === 'edit' ? 'edit' : 'view'} access granted to all projects
+                    </Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.inviteButton, { backgroundColor: colors.primary }]}
+                  onPress={resetAddUserModal}
+                >
+                  <Text style={styles.inviteButtonText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            ) : !selectedUserForInvite ? (
+              <>
+                {/* Tabs: Search / Add by Email */}
+                <View style={styles.tabContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.tab,
+                      { borderBottomColor: addUserTab === 'search' ? colors.primary : 'transparent' },
+                    ]}
+                    onPress={() => setAddUserTab('search')}
+                  >
+                    <Feather
+                      name="search"
+                      size={18}
+                      color={addUserTab === 'search' ? colors.primary : colors.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.tabText,
+                        { color: addUserTab === 'search' ? colors.primary : colors.textMuted },
+                      ]}
+                    >
+                      Search
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.tab,
+                      { borderBottomColor: addUserTab === 'email' ? colors.primary : 'transparent' },
+                    ]}
+                    onPress={() => setAddUserTab('email')}
+                  >
+                    <Feather
+                      name="mail"
+                      size={18}
+                      color={addUserTab === 'email' ? colors.primary : colors.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.tabText,
+                        { color: addUserTab === 'email' ? colors.primary : colors.textMuted },
+                      ]}
+                    >
+                      Add by Email
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {addUserTab === 'search' ? (
+                  <>
+                    {/* Search for users */}
+                    <View style={styles.addUserSearchContainer}>
+                      <Text style={[styles.addUserLabel, { color: colors.text }]}>
+                        Search for an existing user
+                      </Text>
+                      <View style={[styles.addUserSearchBar, { backgroundColor: colors.backgroundSecondary }]}>
+                        <Feather name="search" size={18} color={colors.textMuted} />
+                        <TextInput
+                          style={[styles.addUserSearchInput, { color: colors.text }]}
+                          placeholder="Search by name, username, or email..."
+                          placeholderTextColor={colors.textMuted}
+                          value={addUserSearch}
+                          onChangeText={handleSearchUsers}
+                          autoCapitalize="none"
+                        />
+                        {addUserSearch.length > 0 && (
+                          <TouchableOpacity onPress={() => handleSearchUsers('')}>
+                            <Feather name="x" size={18} color={colors.textMuted} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Search Results */}
+                    {addUserSearch.length >= 2 && (
+                      <View style={styles.addUserResults}>
+                        {isSearching ? (
+                          <Text style={[styles.searchingText, { color: colors.textMuted }]}>Searching...</Text>
+                        ) : searchResults.length > 0 ? (
+                          searchResults.map((user) => (
+                            <TouchableOpacity
+                              key={user._id}
+                              style={[styles.addUserResultRow, { borderBottomColor: colors.borderLight }]}
+                              onPress={() => handleSelectUserForInvite(user)}
+                            >
+                              <Avatar
+                                uri={user.avatar}
+                                name={user.displayName || user.username}
+                                size={44}
+                              />
+                              <View style={styles.addUserResultInfo}>
+                                <Text style={[styles.addUserResultName, { color: colors.text }]}>
+                                  {user.displayName || user.username}
+                                </Text>
+                                <Text style={[styles.addUserResultUsername, { color: colors.textMuted }]}>
+                                  @{user.username}
+                                </Text>
+                              </View>
+                              <Feather name="chevron-right" size={20} color={colors.textMuted} />
+                            </TouchableOpacity>
+                          ))
+                        ) : (
+                          <Text style={[styles.noResultsText, { color: colors.textMuted }]}>
+                            No users found
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Add by Email */}
+                    <View style={styles.addByEmailContainer}>
+                      <Text style={[styles.addUserLabel, { color: colors.text }]}>
+                        Create a new user account
+                      </Text>
+                      <Text style={[styles.addByEmailDesc, { color: colors.textSecondary }]}>
+                        Enter their email to create an account with a temporary password you can share.
+                      </Text>
+
+                      <TextInput
+                        style={[styles.emailInput, { backgroundColor: colors.backgroundSecondary, color: colors.text }]}
+                        placeholder="Enter email address"
+                        placeholderTextColor={colors.textMuted}
+                        value={newUserEmail}
+                        onChangeText={setNewUserEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                      />
+
+                      <Text style={[styles.selectProjectLabel, { color: colors.text, marginTop: 20 }]}>
+                        Grant access to projects:
+                      </Text>
+
+                      <View style={styles.accessLevelContainer}>
                         <TouchableOpacity
-                          key={user._id}
-                          style={[styles.addUserResultRow, { borderBottomColor: colors.borderLight }]}
-                          onPress={() => handleSelectUserForInvite(user)}
+                          style={[
+                            styles.accessLevelOption,
+                            { borderColor: colors.border },
+                            newUserGlobalAccess === 'edit' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                          ]}
+                          onPress={() => setNewUserGlobalAccess('edit')}
                         >
-                          <Avatar
-                            uri={user.avatar}
-                            name={user.displayName || user.username}
-                            size={44}
+                          <Feather
+                            name="edit-2"
+                            size={20}
+                            color={newUserGlobalAccess === 'edit' ? colors.primary : colors.textSecondary}
                           />
-                          <View style={styles.addUserResultInfo}>
-                            <Text style={[styles.addUserResultName, { color: colors.text }]}>
-                              {user.displayName || user.username}
+                          <View style={styles.accessLevelInfo}>
+                            <Text
+                              style={[
+                                styles.accessLevelTitle,
+                                { color: newUserGlobalAccess === 'edit' ? colors.primary : colors.text },
+                              ]}
+                            >
+                              Full Edit Access
                             </Text>
-                            <Text style={[styles.addUserResultUsername, { color: colors.textMuted }]}>
-                              @{user.username}
+                            <Text style={[styles.accessLevelDesc, { color: colors.textMuted }]}>
+                              Can view and edit all projects
                             </Text>
                           </View>
-                          <Feather name="chevron-right" size={20} color={colors.textMuted} />
+                          {newUserGlobalAccess === 'edit' && (
+                            <Feather name="check" size={20} color={colors.primary} />
+                          )}
                         </TouchableOpacity>
-                      ))
-                    ) : (
-                      <Text style={[styles.noResultsText, { color: colors.textMuted }]}>
-                        No users found
-                      </Text>
-                    )}
-                  </View>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.accessLevelOption,
+                            { borderColor: colors.border },
+                            newUserGlobalAccess === 'view' && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                          ]}
+                          onPress={() => setNewUserGlobalAccess('view')}
+                        >
+                          <Feather
+                            name="eye"
+                            size={20}
+                            color={newUserGlobalAccess === 'view' ? colors.primary : colors.textSecondary}
+                          />
+                          <View style={styles.accessLevelInfo}>
+                            <Text
+                              style={[
+                                styles.accessLevelTitle,
+                                { color: newUserGlobalAccess === 'view' ? colors.primary : colors.text },
+                              ]}
+                            >
+                              View Only Access
+                            </Text>
+                            <Text style={[styles.accessLevelDesc, { color: colors.textMuted }]}>
+                              Can view all projects but not edit
+                            </Text>
+                          </View>
+                          {newUserGlobalAccess === 'view' && (
+                            <Feather name="check" size={20} color={colors.primary} />
+                          )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.accessLevelOption,
+                            { borderColor: colors.border },
+                            newUserGlobalAccess === null && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                          ]}
+                          onPress={() => setNewUserGlobalAccess(null)}
+                        >
+                          <Feather
+                            name="user"
+                            size={20}
+                            color={newUserGlobalAccess === null ? colors.primary : colors.textSecondary}
+                          />
+                          <View style={styles.accessLevelInfo}>
+                            <Text
+                              style={[
+                                styles.accessLevelTitle,
+                                { color: newUserGlobalAccess === null ? colors.primary : colors.text },
+                              ]}
+                            >
+                              No Access
+                            </Text>
+                            <Text style={[styles.accessLevelDesc, { color: colors.textMuted }]}>
+                              Add to specific projects later
+                            </Text>
+                          </View>
+                          {newUserGlobalAccess === null && (
+                            <Feather name="check" size={20} color={colors.primary} />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.inviteButton,
+                          { backgroundColor: colors.primary },
+                          (isCreatingUser || !newUserEmail.trim()) && { opacity: 0.5 },
+                        ]}
+                        onPress={handleCreateUserByEmail}
+                        disabled={isCreatingUser || !newUserEmail.trim()}
+                      >
+                        <Text style={styles.inviteButtonText}>
+                          {isCreatingUser ? 'Creating...' : 'Create User'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
                 )}
               </>
             ) : (
@@ -1038,5 +1323,116 @@ const styles = StyleSheet.create({
   globalAccessBadgeText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+    borderBottomWidth: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  addByEmailContainer: {
+    paddingTop: 8,
+  },
+  addByEmailDesc: {
+    fontSize: 13,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  emailInput: {
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 16,
+  },
+  createdUserContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  createdUserTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  createdUserSubtitle: {
+    fontSize: 14,
+    marginBottom: 24,
+  },
+  credentialsBox: {
+    width: '100%',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  credentialRow: {
+    paddingVertical: 8,
+  },
+  credentialLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  credentialValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  credentialValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+  credentialDivider: {
+    height: 1,
+    marginVertical: 8,
+  },
+  copyAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 8,
+    marginBottom: 16,
+  },
+  copyAllButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  accessGrantedNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    gap: 8,
+    marginBottom: 16,
+    width: '100%',
+  },
+  accessGrantedText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

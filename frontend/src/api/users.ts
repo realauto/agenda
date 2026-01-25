@@ -60,4 +60,17 @@ export const usersApi = {
     const response = await apiClient.get<{ users: User[] }>('/users/global-access/list');
     return response.data;
   },
+
+  // Create user by email with temporary password
+  createByEmail: async (
+    email: string,
+    globalAccess?: GlobalProjectAccess | null
+  ): Promise<{ user: User; temporaryPassword: string; message: string }> => {
+    const response = await apiClient.post<{
+      user: User;
+      temporaryPassword: string;
+      message: string;
+    }>('/users/create-by-email', { email, globalAccess });
+    return response.data;
+  },
 };

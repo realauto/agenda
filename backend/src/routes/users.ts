@@ -2,6 +2,8 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { UserService } from '../services/user.service.js';
 import { updateUserSchema, type UpdateUserInput } from '../models/User.js';
 import { authenticate } from '../middleware/authenticate.js';
+import { generateRandomPassword } from '../utils/index.js';
+import type { GlobalProjectAccess } from '../types/index.js';
 
 const usersRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   const userService = new UserService(fastify.mongo.collections.users);
@@ -241,6 +243,61 @@ const usersRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
     async (request, reply) => {
       const users = await userService.getUsersWithGlobalAccess();
       return reply.send({ users });
+    }
+  );
+
+  // Create user by email with temporary password
+  fastify.post<{
+    Body: {
+      email: string;
+      globalAccess?: GlobalProjectAccess | null;
+    };
+  }>(
+    '/create-by-email',
+    {
+      onRequest: [authenticate],
+      schema: {
+        tags: ['Users'],
+        description: 'Create a new user by email with a temporary password. Returns the password for sharing.',
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['email'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            globalAccess: { type: ['string', 'null'], enum: ['view', 'edit', null] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { email, globalAccess } = request.body;
+
+      // Check if user already exists
+      const existingUser = await userService.findByEmail(email);
+      if (existingUser) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'A user with this email already exists',
+        });
+      }
+
+      // Create user with temporary password
+      const temporaryPassword = generateRandomPassword(12);
+      const user = await userService.createFromEmail(email, temporaryPassword);
+
+      // Set global access if requested
+      if (globalAccess) {
+        await userService.setGlobalProjectAccess(user._id.toString(), globalAccess);
+        user.globalProjectAccess = globalAccess;
+      }
+
+      return reply.code(201).send({
+        user: userService.toPublic(user),
+        temporaryPassword,
+        message: 'User created successfully. Share the temporary password with the user.',
+      });
     }
   );
 };

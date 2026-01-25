@@ -197,7 +197,7 @@ export class UserService {
     return users.map((u) => this.toPublic(u));
   }
 
-  // Get users who share projects with the given user
+  // Get users who share projects with the given user (including users with global access)
   async getConnectedUsers(
     userId: string,
     projectsCollection: Collection<Project>
@@ -213,6 +213,8 @@ export class UserService {
         ],
       })
       .toArray();
+
+    const totalProjectCount = projects.length;
 
     // Collect all unique user IDs from these projects
     const userIdSet = new Set<string>();
@@ -231,6 +233,24 @@ export class UserService {
           userIdSet.add(collabId);
           userProjectCounts.set(collabId, (userProjectCounts.get(collabId) || 0) + 1);
         }
+      }
+    }
+
+    // Also get users with global project access (they have access to all projects)
+    const globalAccessUsers = await this.collection
+      .find({
+        _id: { $ne: userObjectId },
+        globalProjectAccess: { $in: ['view', 'edit'] as GlobalProjectAccess[] },
+      })
+      .toArray();
+
+    // Add global access users to the set
+    for (const user of globalAccessUsers) {
+      const globalUserId = user._id.toString();
+      if (!userIdSet.has(globalUserId)) {
+        userIdSet.add(globalUserId);
+        // Global access users have access to all projects
+        userProjectCounts.set(globalUserId, totalProjectCount);
       }
     }
 
